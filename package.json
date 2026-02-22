@@ -1,10 +1,10 @@
 {
-  "name": "playwright-agent-skills",
+  "name": "wico-playwright-agent-skills",
   "version": "0.1.0",
   "description": "wico — Playwright Agent Skills for AI-assisted E2E testing",
   "type": "module",
   "bin": {
-    "playwright-agent-skills": "./dist/bin/init.js"
+    "wico-playwright-agent-skills": "./dist/bin/init.js"
   },
   "scripts": {
     "build": "tsup",

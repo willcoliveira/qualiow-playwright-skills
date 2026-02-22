@@ -60,7 +60,7 @@ If you just want to use it in an existing Playwright project without cloning:
 
 ```bash
 # Run directly in your Playwright project directory
-npx playwright-agent-skills init
+npx wico-playwright-agent-skills init
 ```
 
 ## How to Use the CLI
@@ -70,7 +70,7 @@ npx playwright-agent-skills init
 Navigate to your Playwright project (the one where you want skills installed) and run:
 
 ```bash
-npx playwright-agent-skills init
+npx wico-playwright-agent-skills init
 ```
 
 The CLI walks you through 5 steps:
