@@ -4,7 +4,7 @@
   "description": "wico — Playwright Agent Skills for AI-assisted E2E testing",
   "type": "module",
   "bin": {
-    "wico-playwright-agent-skills": "./dist/bin/init.js"
+    "wico-playwright-agent-skills": "dist/bin/init.js"
   },
   "scripts": {
     "build": "tsup",
@@ -27,6 +27,14 @@
     "copilot",
     "skills"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/willcoliveira/qualiow-playwright-skills.git"
+  },
+  "homepage": "https://github.com/willcoliveira/qualiow-playwright-skills#readme",
+  "bugs": {
+    "url": "https://github.com/willcoliveira/qualiow-playwright-skills/issues"
+  },
   "author": "William Oliveira",
   "license": "MIT",
   "dependencies": {

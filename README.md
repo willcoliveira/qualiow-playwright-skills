@@ -17,33 +17,29 @@ The skills cover:
 
 The CLI detects your project setup, asks which platforms and skill packs you want, replaces template placeholders with your project info, and generates the files in the right format for each platform.
 
-## How to Install This Project
+## How to Install
 
 ### Prerequisites
 
-#### Node.js
-
-Having Node.js installed is mandatory to run this project. Download and install from [nodejs.org](https://nodejs.org/en/download/).
-
-After installation, open a terminal and verify the version (must be >= v18):
+- **Node.js** (>= v18) — Download from [nodejs.org](https://nodejs.org/en/download/)
 
 ```bash
-# Verify Node.js version
-node -v
-
-# Verify npm version
-npm -v
+node -v   # must be >= v18
 ```
 
-#### Git
+### Quick Start
 
-Git is required to clone the repository. Download from [git-scm.com](https://git-scm.com/downloads) if not already installed.
+Navigate to your Playwright project and run:
 
 ```bash
-git --version
+npx wico-playwright-agent-skills init
 ```
 
-### Clone and Setup
+That's it. The CLI will detect your project, ask which platforms and skills you want, and generate the files.
+
+### Development Setup
+
+If you want to contribute or run from source:
 
 ```bash
 # Clone the repository
@@ -54,24 +50,7 @@ cd qualiow-playwright-skills
 npm install
 ```
 
-### Quick Start (npx)
-
-If you just want to use it in an existing Playwright project without cloning:
-
-```bash
-# Run directly in your Playwright project directory
-npx wico-playwright-agent-skills init
-```
-
 ## How to Use the CLI
-
-### Running the Init Command
-
-Navigate to your Playwright project (the one where you want skills installed) and run:
-
-```bash
-npx wico-playwright-agent-skills init
-```
 
 The CLI walks you through 5 steps:
 
