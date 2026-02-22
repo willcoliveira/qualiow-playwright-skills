@@ -1,0 +1,42 @@
+{
+  "name": "playwright-agent-skills",
+  "version": "0.1.0",
+  "description": "wico — Playwright Agent Skills for AI-assisted E2E testing",
+  "type": "module",
+  "bin": {
+    "playwright-agent-skills": "./dist/bin/init.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx bin/init.ts",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "skills"
+  ],
+  "keywords": [
+    "playwright",
+    "e2e",
+    "testing",
+    "agent",
+    "ai",
+    "claude",
+    "cursor",
+    "copilot",
+    "skills"
+  ],
+  "author": "William Oliveira",
+  "license": "MIT",
+  "dependencies": {
+    "@clack/prompts": "^0.9.1",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "tsup": "^8.3.6",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

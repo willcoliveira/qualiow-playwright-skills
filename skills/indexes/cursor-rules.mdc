@@ -1,0 +1,48 @@
+---
+description: Playwright E2E testing patterns, conventions, and best practices
+globs: "**/*.spec.ts,**/*.page.ts,**/test-flows/**,**/fixtures/**,**/helpers/**"
+---
+
+# Playwright E2E Skills
+
+## Decision Tree
+
+- **Write a NEW test:** Read test-planning → explore with playwright-cli → write using test-generation → review with test-review
+- **Debug a FAILING test:** Follow test-debugging workflow → classify root cause → fix or report bug
+- **Understand PATTERNS:** playwright-patterns (waitForResponse, toPass, expect.poll), data-strategy, page-object-conventions
+- **Follow CONVENTIONS:** project-conventions (MUST/SHOULD/WON'T rules)
+
+## Key Rules
+
+### MUST
+- Use web-first assertions (`await expect(locator).toBeVisible()`)
+- Use named timeout constants, not hardcoded numbers
+- Wrap page object methods in `test.step()`
+- Use POM pattern — locators as readonly class properties
+- Use short inner timeouts inside `toPass` blocks
+
+### WON'T
+- Use XPath selectors
+- Use `page.waitForTimeout()` for synchronization
+- Use `{ force: true }` on actions
+- Use `networkidle` in `goto()` or `waitForLoadState()`
+- Use deprecated APIs (`waitForNavigation`)
+- Write custom retry/polling loops (use `toPass()` or `expect.poll()`)
+
+## Selector Priority
+1. `getByRole()` > 2. `getByLabel()` > 3. `getByText()` > 4. `getByTestId()` > 5. CSS selector
+
+## waitForResponse Pattern
+```typescript
+// Setup listener BEFORE the action
+const responsePromise = page.waitForResponse('**/api/data')
+await page.getByRole('button', { name: 'Submit' }).click()
+const response = await responsePromise
+```
+
+## toPass Pattern
+```typescript
+await expect(async () => {
+  await expect(page.getByTestId('result')).toBeVisible({ timeout: 1_000 })
+}).toPass({ timeout: 30_000, intervals: [1_000, 2_000, 5_000] })
+```
