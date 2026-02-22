@@ -1,6 +1,6 @@
 {
   "name": "wico-playwright-agent-skills",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "wico — Playwright Agent Skills for AI-assisted E2E testing",
   "type": "module",
   "bin": {
