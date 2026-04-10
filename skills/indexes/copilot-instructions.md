@@ -63,8 +63,31 @@ await expect.poll(async () => {
 6. **Readability** — descriptive names, no magic numbers
 7. **Reliability** — toPass/poll over custom loops, no force:true
 
+{{#if HAS_PLAYWRIGHT_159}}
+## Agent Debugging (Playwright v1.59+)
+
+When a test fails, use CLI-based debugging — no browser UI needed:
+
+```bash
+npx playwright test tests/failing.spec.ts --debug=cli     # Step through from terminal
+npx playwright trace open test-results/*/trace.zip         # Open trace in CLI
+npx playwright trace actions --grep="expect"               # Jump to failing assertion
+npx playwright trace snapshot 9 --name after               # Page state at failure
+npx playwright trace requests --failed                     # Failed API calls
+npx playwright trace errors                                # Full error details
+```
+
+## Root Cause Classification
+- **LOCATOR_CHANGED** — Update selector from page inspection (`trace snapshot` shows different attributes)
+- **NEW_PREREQUISITE** — Add missing interaction step (`trace actions` shows unexpected modal)
+- **TIMING_ISSUE** — Add web-first assertion or waitForURL() (`trace snapshot` before/after comparison)
+- **API_FAILURE** — Backend returning errors (`trace requests --failed`)
+- **APPLICATION_BUG** — Do NOT fix the test, report the bug (`trace errors` shows app exceptions)
+{{/if}}
+{{#if NO_PLAYWRIGHT_159}}
 ## Root Cause Classification
 - **LOCATOR_CHANGED** — Update selector from page inspection
 - **NEW_PREREQUISITE** — Add missing interaction step
 - **TIMING_ISSUE** — Add web-first assertion or waitForURL()
 - **APPLICATION_BUG** — Do NOT fix the test, report the bug
+{{/if}}

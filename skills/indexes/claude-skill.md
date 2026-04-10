@@ -11,7 +11,8 @@ What do you need to do?
 │  └─ Review when done  → references/test-review.md
 │
 ├─ Debug a FAILING test
-│  └─ Diagnose & fix    → references/test-debugging.md
+{{#if HAS_PLAYWRIGHT_159}}│  ├─ Agent debug (CLI) → references/test-debugging.md (uses --debug=cli + trace analysis)
+{{/if}}│  └─ Diagnose & fix    → references/test-debugging.md
 │
 ├─ Understand PATTERNS
 │  ├─ Playwright APIs   → references/playwright-patterns.md
@@ -29,5 +30,6 @@ What do you need to do?
 
 - **Before writing tests:** Read `test-planning.md` → explore with playwright-cli → write using `test-generation.md`
 - **Before submitting PRs:** Run `test-review.md` checklist
-- **When tests fail:** Follow `test-debugging.md` workflow → classify root cause → fix or report bug
+{{#if HAS_PLAYWRIGHT_159}}- **When tests fail:** Follow `test-debugging.md` workflow → use `--debug=cli` + trace analysis → classify root cause → fix or report bug{{/if}}
+{{#if NO_PLAYWRIGHT_159}}- **When tests fail:** Follow `test-debugging.md` workflow → classify root cause → fix or report bug{{/if}}
 - **For patterns:** Check `playwright-patterns.md` for waitForResponse, toPass, expect.poll

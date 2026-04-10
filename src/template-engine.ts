@@ -9,6 +9,8 @@ export interface TemplateContext {
   NO_CUSTOM_FIXTURE: boolean
   HAS_PAGE_FACTORY: boolean
   NO_PAGE_FACTORY: boolean
+  HAS_PLAYWRIGHT_159: boolean
+  NO_PLAYWRIGHT_159: boolean
 }
 
 /**
@@ -48,8 +50,9 @@ export function buildContext(projectInfo: {
   fixtureImportPath: string
   pageObjectsDir: string
   testDir: string
-}): TemplateContext {
+}, options?: { meetsMinPlaywrightVersion?: boolean }): TemplateContext {
   const hasCustomFixture = !!projectInfo.fixtureImportPath && projectInfo.fixtureImportPath !== 'none'
+  const hasPlaywright159 = options?.meetsMinPlaywrightVersion ?? false
 
   return {
     PROJECT_NAME: projectInfo.projectName,
@@ -62,5 +65,7 @@ export function buildContext(projectInfo: {
     PAGE_FACTORY_IMPORT: '',
     HAS_PAGE_FACTORY: false, // user can set this later
     NO_PAGE_FACTORY: true,
+    HAS_PLAYWRIGHT_159: hasPlaywright159,
+    NO_PLAYWRIGHT_159: !hasPlaywright159,
   }
 }

@@ -27,6 +27,30 @@ playwright-cli snapshot --selector "[data-testid='form']"
 
 The CLI gives you real-time visibility into page structure, available selectors, and element states.
 
+{{#if HAS_PLAYWRIGHT_159}}
+### Step Through Existing Tests with --debug=cli (v1.59+)
+
+Use CLI debug mode to walk through existing tests and understand the application flow:
+
+```bash
+# Step through a test to see what it does
+npx playwright test {{TEST_DIR}}/checkout.spec.ts --debug=cli
+
+# Filter to a specific test
+npx playwright test --debug=cli -g "should display products"
+```
+
+### Live Inspection with browser.bind() (v1.59+)
+
+For deeper exploration, bind a running browser session for live agent inspection:
+
+```typescript
+const browser = await chromium.launch()
+const sessionUrl = await browser.bind()
+// Agent connects to sessionUrl to inspect live state while test runs
+```
+{{/if}}
+
 ---
 
 ## Application Flow Phases
