@@ -11,7 +11,8 @@ What do you need to do?
 │  └─ Review when done  → test-review.md
 │
 ├─ Debug a FAILING test
-│  └─ Diagnose & fix    → test-debugging.md
+{{#if HAS_PLAYWRIGHT_159}}│  ├─ Agent debug (CLI) → test-debugging.md (uses --debug=cli + trace analysis)
+{{/if}}│  └─ Diagnose & fix    → test-debugging.md
 │
 ├─ Understand PATTERNS
 │  ├─ Playwright APIs   → playwright-patterns.md
@@ -37,4 +38,5 @@ What do you need to do?
 | **Test Debugging** | `test-debugging.md` | Failure patterns, root cause classification, decision tree |
 | **Test Generation** | `test-generation.md` | Test scaffolding templates, import rules, fixture docs |
 | **Test Planning** | `test-planning.md` | Exploration workflow, test plan template, planning checklist |
-| **Playwright CLI** | `playwright-cli/SKILL.md` | Browser automation: open, click, fill, snapshot, trace |
+{{#if HAS_PLAYWRIGHT_159}}| **Playwright CLI** | `playwright-cli/SKILL.md` | Browser automation: open, click, fill, snapshot, trace, --debug=cli, trace analysis |{{/if}}
+{{#if NO_PLAYWRIGHT_159}}| **Playwright CLI** | `playwright-cli/SKILL.md` | Browser automation: open, click, fill, snapshot, trace |{{/if}}

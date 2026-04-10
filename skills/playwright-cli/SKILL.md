@@ -155,6 +155,33 @@ playwright-cli video-start
 playwright-cli video-stop video.webm
 ```
 
+{{#if HAS_PLAYWRIGHT_159}}
+### CLI Debug & Trace Analysis (Playwright v1.59+)
+
+```bash
+# Step through a failing test from the terminal (no browser UI)
+npx playwright test tests/checkout.spec.ts --debug=cli
+
+# Open a trace file for CLI analysis
+npx playwright trace open test-results/failing-test/trace.zip
+
+# List actions, filter to assertions
+npx playwright trace actions --grep="expect"
+
+# Inspect page state at a specific step
+npx playwright trace snapshot 9 --name after
+
+# Inspect failed network requests (API e2e)
+npx playwright trace requests --failed
+
+# Show full error details
+npx playwright trace errors
+
+# Expose running browser to CLI/MCP for live agent inspection
+# (in test code: const sessionUrl = await browser.bind())
+```
+{{/if}}
+
 ## Open parameters
 ```bash
 # Use specific browser when creating session
@@ -267,6 +294,25 @@ playwright-cli tracing-stop
 playwright-cli close
 ```
 
+{{#if HAS_PLAYWRIGHT_159}}
+## Example: Agent Debugging Workflow (v1.59+)
+
+```bash
+# 1. A CI test failed — trace artifact available
+# 2. Open and investigate the trace from the terminal
+npx playwright trace open test-results/checkout-spec/trace.zip
+npx playwright trace actions --grep="expect"
+npx playwright trace snapshot 12 --name after
+npx playwright trace requests --failed
+npx playwright trace errors
+
+# 3. Fix the test based on findings
+
+# 4. Verify the fix with CLI debug mode
+npx playwright test tests/checkout.spec.ts --debug=cli
+```
+{{/if}}
+
 ## Specific tasks
 
 * **Request mocking** [references/request-mocking.md](references/request-mocking.md)
@@ -274,5 +320,6 @@ playwright-cli close
 * **Browser session management** [references/session-management.md](references/session-management.md)
 * **Storage state (cookies, localStorage)** [references/storage-state.md](references/storage-state.md)
 * **Test generation** [references/test-generation.md](references/test-generation.md)
-* **Tracing** [references/tracing.md](references/tracing.md)
+{{#if HAS_PLAYWRIGHT_159}}* **Tracing & CLI Trace Analysis** [references/tracing.md](references/tracing.md){{/if}}
+{{#if NO_PLAYWRIGHT_159}}* **Tracing** [references/tracing.md](references/tracing.md){{/if}}
 * **Video recording** [references/video-recording.md](references/video-recording.md)

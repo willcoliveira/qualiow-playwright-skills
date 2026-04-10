@@ -3,7 +3,7 @@ import pc from 'picocolors'
 import { detectProject } from './prompts.js'
 import { generate } from './generator.js'
 
-const VERSION = '0.1.0'
+const VERSION = '1.1.0'
 
 export async function cli(command: string, _args: string[]) {
   p.intro(`${pc.bold(pc.cyan('wico'))} — Playwright Agent Skills ${pc.dim(`v${VERSION}`)}`)
@@ -32,6 +32,16 @@ async function init() {
     p.log.success('TypeScript project detected')
   } else {
     p.log.info('JavaScript project (TypeScript recommended)')
+  }
+
+  if (detection.playwrightVersion) {
+    if (detection.meetsMinVersion) {
+      p.log.success(`Playwright v${detection.playwrightVersion} — ${pc.green('agent debugging features enabled')} (--debug=cli, trace analysis, browser.bind)`)
+    } else {
+      p.log.warn(`Playwright v${detection.playwrightVersion} — generating ${pc.bold('classic skills')} (upgrade to v1.59+ for agent debugging features)`)
+    }
+  } else {
+    p.log.warn(`Could not detect Playwright version — generating ${pc.bold('classic skills')} (install v1.59+ for agent debugging features)`)
   }
 
   // Step 2: Agent Platform(s)
@@ -160,6 +170,7 @@ async function init() {
       packs: packs as string[],
       projectInfo,
       cwd: process.cwd(),
+      meetsMinPlaywrightVersion: detection.meetsMinVersion,
     })
 
     s.stop(`Generated ${result.filesCreated} files`)

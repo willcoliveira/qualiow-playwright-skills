@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { readFileSync } from 'node:fs'
 import { writeFile, relativePath, type SkillFile } from '../generator.js'
+import { renderTemplate, type TemplateContext } from '../template-engine.js'
 
 /**
  * Generic platform generator.
@@ -11,13 +12,13 @@ import { writeFile, relativePath, type SkillFile } from '../generator.js'
  *   .agent-skills/references/playwright-cli/SKILL.md
  *   .agent-skills/references/playwright-cli/references/*.md
  */
-export function generateGeneric(cwd: string, skillFiles: SkillFile[], skillsDir: string): string[] {
+export function generateGeneric(cwd: string, skillFiles: SkillFile[], skillsDir: string, ctx: TemplateContext): string[] {
   const files: string[] = []
   const baseDir = join(cwd, '.agent-skills')
   const refsDir = join(baseDir, 'references')
 
   // Write SKILL.md index
-  const indexContent = readFileSync(join(skillsDir, 'indexes', 'skill-index.md'), 'utf-8')
+  const indexContent = renderTemplate(readFileSync(join(skillsDir, 'indexes', 'skill-index.md'), 'utf-8'), ctx)
   const indexPath = join(baseDir, 'SKILL.md')
   writeFile(indexPath, indexContent)
   files.push(relativePath(cwd, indexPath))
