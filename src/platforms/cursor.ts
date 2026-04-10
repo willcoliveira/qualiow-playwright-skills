@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { readFileSync } from 'node:fs'
 import { writeFile, relativePath, type SkillFile } from '../generator.js'
+import { renderTemplate, type TemplateContext } from '../template-engine.js'
 
 /**
  * Cursor platform generator.
@@ -18,12 +19,12 @@ import { writeFile, relativePath, type SkillFile } from '../generator.js'
  *
  * Each file gets Cursor frontmatter with description and globs.
  */
-export function generateCursor(cwd: string, skillFiles: SkillFile[], skillsDir: string): string[] {
+export function generateCursor(cwd: string, skillFiles: SkillFile[], skillsDir: string, ctx: TemplateContext): string[] {
   const files: string[] = []
   const rulesDir = join(cwd, '.cursor', 'rules')
 
   // Write the main index rule
-  const indexContent = readFileSync(join(skillsDir, 'indexes', 'cursor-rules.mdc'), 'utf-8')
+  const indexContent = renderTemplate(readFileSync(join(skillsDir, 'indexes', 'cursor-rules.mdc'), 'utf-8'), ctx)
   const indexPath = join(rulesDir, 'playwright-e2e.mdc')
   writeFile(indexPath, indexContent)
   files.push(relativePath(cwd, indexPath))

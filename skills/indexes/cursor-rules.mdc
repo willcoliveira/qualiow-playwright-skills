@@ -8,7 +8,8 @@ globs: "**/*.spec.ts,**/*.page.ts,**/test-flows/**,**/fixtures/**,**/helpers/**"
 ## Decision Tree
 
 - **Write a NEW test:** Read test-planning → explore with playwright-cli → write using test-generation → review with test-review
-- **Debug a FAILING test:** Follow test-debugging workflow → classify root cause → fix or report bug
+{{#if HAS_PLAYWRIGHT_159}}- **Debug a FAILING test:** Follow test-debugging workflow → use `--debug=cli` + CLI trace analysis → classify root cause → fix or report bug{{/if}}
+{{#if NO_PLAYWRIGHT_159}}- **Debug a FAILING test:** Follow test-debugging workflow → classify root cause → fix or report bug{{/if}}
 - **Understand PATTERNS:** playwright-patterns (waitForResponse, toPass, expect.poll), data-strategy, page-object-conventions
 - **Follow CONVENTIONS:** project-conventions (MUST/SHOULD/WON'T rules)
 

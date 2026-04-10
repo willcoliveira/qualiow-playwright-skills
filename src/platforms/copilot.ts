@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { readFileSync, existsSync } from 'node:fs'
 import { writeFile, relativePath, type SkillFile } from '../generator.js'
+import { renderTemplate, type TemplateContext } from '../template-engine.js'
 
 /**
  * GitHub Copilot platform generator.
@@ -11,12 +12,12 @@ import { writeFile, relativePath, type SkillFile } from '../generator.js'
  * Copilot uses a single file. We start with the index template and append
  * all selected skill content into one consolidated document.
  */
-export function generateCopilot(cwd: string, skillFiles: SkillFile[], skillsDir: string): string[] {
+export function generateCopilot(cwd: string, skillFiles: SkillFile[], skillsDir: string, ctx: TemplateContext): string[] {
   const files: string[] = []
   const filePath = join(cwd, '.github', 'copilot-instructions.md')
 
   // Start with the consolidated copilot instructions index
-  let content = readFileSync(join(skillsDir, 'indexes', 'copilot-instructions.md'), 'utf-8')
+  let content = renderTemplate(readFileSync(join(skillsDir, 'indexes', 'copilot-instructions.md'), 'utf-8'), ctx)
 
   // Append each selected skill file content
   if (skillFiles.length > 0) {
