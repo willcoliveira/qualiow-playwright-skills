@@ -1,0 +1,1 @@
+- [Playwright v1.59 Upgrade](project_playwright159_upgrade.md) — Major version bump to add agent-facing CLI debug features (--debug=cli, trace analysis, browser.bind)

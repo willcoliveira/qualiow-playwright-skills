@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { readFileSync } from 'node:fs'
 import { writeFile, relativePath, type SkillFile } from '../generator.js'
+import { renderTemplate, type TemplateContext } from '../template-engine.js'
 
 /**
  * Claude Code platform generator.
@@ -11,7 +12,7 @@ import { writeFile, relativePath, type SkillFile } from '../generator.js'
  *   .claude/skills/playwright-cli/SKILL.md
  *   .claude/skills/playwright-cli/references/*.md
  */
-export function generateClaude(cwd: string, skillFiles: SkillFile[], skillsDir: string): string[] {
+export function generateClaude(cwd: string, skillFiles: SkillFile[], skillsDir: string, ctx: TemplateContext): string[] {
   const files: string[] = []
   const baseDir = join(cwd, '.claude', 'skills')
 
@@ -20,7 +21,7 @@ export function generateClaude(cwd: string, skillFiles: SkillFile[], skillsDir: 
   const refsDir = join(e2eDir, 'references')
 
   // Write SKILL.md index
-  const indexContent = readFileSync(join(skillsDir, 'indexes', 'claude-skill.md'), 'utf-8')
+  const indexContent = renderTemplate(readFileSync(join(skillsDir, 'indexes', 'claude-skill.md'), 'utf-8'), ctx)
   const indexPath = join(e2eDir, 'SKILL.md')
   writeFile(indexPath, indexContent)
   files.push(relativePath(cwd, indexPath))

@@ -16,6 +16,7 @@ export interface GenerateOptions {
   packs: string[]
   projectInfo: ProjectInfo
   cwd: string
+  meetsMinPlaywrightVersion: boolean
 }
 
 export interface GenerateResult {
@@ -24,34 +25,35 @@ export interface GenerateResult {
 }
 
 export async function generate(options: GenerateOptions): Promise<GenerateResult> {
-  const { platforms, packs, projectInfo, cwd } = options
-  const ctx = buildContext(projectInfo)
+  const { platforms, packs, projectInfo, cwd, meetsMinPlaywrightVersion } = options
+  const ctx = buildContext(projectInfo, { meetsMinPlaywrightVersion })
   const files: string[] = []
 
   // Resolve skills directory (relative to this file in dist or source)
   const skillsDir = resolveSkillsDir()
 
   // Collect all skill files based on selected packs
+  // All files go through renderTemplate to resolve version conditionals
   const skillFiles: SkillFile[] = []
 
   if (packs.includes('core')) {
     skillFiles.push(
-      { type: 'core', name: 'playwright-patterns.md', content: readSkill(skillsDir, 'core/playwright-patterns.md') },
-      { type: 'core', name: 'data-strategy.md', content: readSkill(skillsDir, 'core/data-strategy.md') },
-      { type: 'core', name: 'test-review.md', content: readSkill(skillsDir, 'core/test-review.md') },
+      { type: 'core', name: 'playwright-patterns.md', content: renderTemplate(readSkill(skillsDir, 'core/playwright-patterns.md'), ctx) },
+      { type: 'core', name: 'data-strategy.md', content: renderTemplate(readSkill(skillsDir, 'core/data-strategy.md'), ctx) },
+      { type: 'core', name: 'test-review.md', content: renderTemplate(readSkill(skillsDir, 'core/test-review.md'), ctx) },
     )
   }
 
   if (packs.includes('playwright-cli')) {
     skillFiles.push(
-      { type: 'playwright-cli', name: 'SKILL.md', content: readSkill(skillsDir, 'playwright-cli/SKILL.md') },
-      { type: 'playwright-cli', name: 'references/request-mocking.md', content: readSkill(skillsDir, 'playwright-cli/references/request-mocking.md') },
-      { type: 'playwright-cli', name: 'references/running-code.md', content: readSkill(skillsDir, 'playwright-cli/references/running-code.md') },
-      { type: 'playwright-cli', name: 'references/session-management.md', content: readSkill(skillsDir, 'playwright-cli/references/session-management.md') },
-      { type: 'playwright-cli', name: 'references/storage-state.md', content: readSkill(skillsDir, 'playwright-cli/references/storage-state.md') },
-      { type: 'playwright-cli', name: 'references/test-generation.md', content: readSkill(skillsDir, 'playwright-cli/references/test-generation.md') },
-      { type: 'playwright-cli', name: 'references/tracing.md', content: readSkill(skillsDir, 'playwright-cli/references/tracing.md') },
-      { type: 'playwright-cli', name: 'references/video-recording.md', content: readSkill(skillsDir, 'playwright-cli/references/video-recording.md') },
+      { type: 'playwright-cli', name: 'SKILL.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/SKILL.md'), ctx) },
+      { type: 'playwright-cli', name: 'references/request-mocking.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/request-mocking.md'), ctx) },
+      { type: 'playwright-cli', name: 'references/running-code.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/running-code.md'), ctx) },
+      { type: 'playwright-cli', name: 'references/session-management.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/session-management.md'), ctx) },
+      { type: 'playwright-cli', name: 'references/storage-state.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/storage-state.md'), ctx) },
+      { type: 'playwright-cli', name: 'references/test-generation.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/test-generation.md'), ctx) },
+      { type: 'playwright-cli', name: 'references/tracing.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/tracing.md'), ctx) },
+      { type: 'playwright-cli', name: 'references/video-recording.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/video-recording.md'), ctx) },
     )
   }
 
@@ -71,16 +73,16 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
 
     switch (platform) {
       case 'claude':
-        platformFiles = generateClaude(cwd, skillFiles, skillsDir)
+        platformFiles = generateClaude(cwd, skillFiles, skillsDir, ctx)
         break
       case 'cursor':
-        platformFiles = generateCursor(cwd, skillFiles, skillsDir)
+        platformFiles = generateCursor(cwd, skillFiles, skillsDir, ctx)
         break
       case 'copilot':
-        platformFiles = generateCopilot(cwd, skillFiles, skillsDir)
+        platformFiles = generateCopilot(cwd, skillFiles, skillsDir, ctx)
         break
       case 'generic':
-        platformFiles = generateGeneric(cwd, skillFiles, skillsDir)
+        platformFiles = generateGeneric(cwd, skillFiles, skillsDir, ctx)
         break
       default:
         continue
