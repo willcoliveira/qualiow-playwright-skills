@@ -44,9 +44,10 @@ function detectPlaywrightVersion(cwd: string): string | null {
     } catch {}
   }
 
-  // Fallback: try npx playwright --version
+  // Fallback: ask the locally installed playwright CLI.
+  // --no-install guarantees detection never triggers a network download.
   try {
-    const output = execSync('npx playwright --version', { cwd, timeout: 10_000, stdio: ['pipe', 'pipe', 'pipe'] })
+    const output = execSync('npx --no-install playwright --version', { cwd, timeout: 10_000, stdio: ['pipe', 'pipe', 'pipe'] })
     const match = output.toString().trim().match(/(\d+\.\d+\.\d+)/)
     if (match) return match[1]
   } catch {}
@@ -54,9 +55,14 @@ function detectPlaywrightVersion(cwd: string): string | null {
   return null
 }
 
-function compareVersions(a: string, b: string): number {
-  const pa = a.split('.').map(Number)
-  const pb = b.split('.').map(Number)
+export function compareVersions(a: string, b: string): number {
+  // Strip pre-release/build suffixes ("1.60.0-beta.1" → "1.60.0")
+  const parse = (v: string) => v.split(/[-+]/)[0].split('.').map(part => {
+    const n = Number(part)
+    return Number.isFinite(n) ? n : 0
+  })
+  const pa = parse(a)
+  const pb = parse(b)
   for (let i = 0; i < 3; i++) {
     const diff = (pa[i] || 0) - (pb[i] || 0)
     if (diff !== 0) return diff

@@ -3,7 +3,7 @@ import { defineConfig } from 'tsup'
 export default defineConfig({
   entry: ['bin/init.ts'],
   format: ['esm'],
-  target: 'node18',
+  target: 'node20',
   outDir: 'dist/bin',
   splitting: false,
   clean: true,
