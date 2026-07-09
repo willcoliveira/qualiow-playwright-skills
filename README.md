@@ -21,10 +21,10 @@ The CLI detects your project setup, asks which platforms and skill packs you wan
 
 ### Prerequisites
 
-- **Node.js** (>= v18) — Download from [nodejs.org](https://nodejs.org/en/download/)
+- **Node.js** (>= v20) — Download from [nodejs.org](https://nodejs.org/en/download/)
 
 ```bash
-node -v   # must be >= v18
+node -v   # must be >= v20
 ```
 
 ### Quick Start
@@ -36,6 +36,16 @@ npx wico-playwright-agent-skills init
 ```
 
 That's it. The CLI will detect your project, ask which platforms and skills you want, and generate the files.
+
+### CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `-f, --force` | Overwrite existing files without asking |
+| `-h, --help` | Show help |
+| `-v, --version` | Show version |
+
+If any of the target files already exist, the CLI lists them and asks for confirmation before overwriting — pass `--force` to skip that check (e.g. in scripts).
 
 ### Development Setup
 
@@ -55,7 +65,7 @@ npm install
 The CLI walks you through 5 steps:
 
 ```
-  wico — Playwright Agent Skills v0.1.0
+  wico — Playwright Agent Skills v1.2.0
 
   Step 1: Project Detection
   ─────────────────────────
@@ -111,6 +121,12 @@ node dist/bin/init.js init
 npm run lint
 ```
 
+### Running Tests
+
+```bash
+npm test
+```
+
 ### Building for Distribution
 
 ```bash
@@ -127,7 +143,7 @@ Each platform has its own convention for where AI instructions live. The CLI gen
 |----------|-------------|--------|
 | Claude Code | `.claude/skills/playwright-e2e/` | SKILL.md index + `references/` directory |
 | Cursor | `.cursor/rules/*.mdc` | Frontmatter with `description` + `globs` per file |
-| GitHub Copilot | `.github/copilot-instructions.md` | Single consolidated markdown file (appends if exists) |
+| GitHub Copilot | `.github/copilot-instructions.md` | Single consolidated markdown file — the generated section is wrapped in `<!-- wico-playwright-agent-skills:start/end -->` markers, so re-running replaces it in place and your hand-written content outside the markers is preserved |
 | Generic | `.agent-skills/` | SKILL.md index + `references/` directory |
 
 ### Skill Packs
@@ -224,13 +240,15 @@ qualiow-playwright-skills/
 ├── src/
 │   ├── cli.ts                        # CLI orchestrator (5-step flow with @clack/prompts)
 │   ├── prompts.ts                    # Project detection (playwright.config.ts, tsconfig.json)
-│   ├── generator.ts                  # File generation orchestrator
+│   ├── generator.ts                  # Plan/write orchestrator (dry-run plan, then write)
 │   ├── template-engine.ts            # {{PLACEHOLDER}} + {{#if}} replacement engine
+│   ├── version.ts                    # Reads CLI version from package.json
 │   └── platforms/
 │       ├── claude.ts                 # .claude/skills/ generator
 │       ├── cursor.ts                 # .cursor/rules/*.mdc generator
-│       ├── copilot.ts                # .github/copilot-instructions.md generator
+│       ├── copilot.ts                # .github/copilot-instructions.md generator (marker-based merge)
 │       └── generic.ts                # .agent-skills/ generator
+├── tests/                            # node:test suite (template engine, generator, merge logic)
 ├── skills/
 │   ├── core/                         # Shipped as-is (generic Playwright knowledge)
 │   │   ├── playwright-patterns.md
@@ -273,12 +291,13 @@ qualiow-playwright-skills/
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Language | TypeScript | 5.7+ |
-| Runtime | Node.js | 18+ |
-| CLI Prompts | @clack/prompts | 0.9+ |
+| Language | TypeScript | 7.0+ |
+| Runtime | Node.js | 20+ |
+| CLI Prompts | @clack/prompts | 1.7+ |
 | Colors | picocolors | 1.1+ |
-| Build | tsup | 8.3+ |
-| Dev Runner | tsx | 4.19+ |
+| Build | tsup | 8.5+ |
+| Dev Runner | tsx | 4.23+ |
+| Tests | node:test | built-in |
 
 ## Contributing
 
@@ -287,8 +306,8 @@ If you'd like to contribute new skills, improve existing templates, or add suppo
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feat/my-skill`)
 3. Make your changes
-4. Run `npm run lint` to verify types
-5. Submit a pull request
+4. Run `npm run lint` and `npm test` to verify types and behavior
+5. Submit a pull request (CI runs lint, tests, build, and a CLI smoke test)
 
 ## License
 

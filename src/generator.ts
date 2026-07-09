@@ -2,10 +2,10 @@ import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join, dirname, resolve, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { renderTemplate, buildContext } from './template-engine.js'
-import { generateClaude } from './platforms/claude.js'
-import { generateCursor } from './platforms/cursor.js'
-import { generateCopilot } from './platforms/copilot.js'
-import { generateGeneric } from './platforms/generic.js'
+import { planClaude } from './platforms/claude.js'
+import { planCursor } from './platforms/cursor.js'
+import { planCopilot } from './platforms/copilot.js'
+import { planGeneric } from './platforms/generic.js'
 import type { ProjectInfo } from './cli.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -19,82 +19,97 @@ export interface GenerateOptions {
   meetsMinPlaywrightVersion: boolean
 }
 
-export interface GenerateResult {
-  filesCreated: number
-  files: string[]
+export interface PlannedFile {
+  path: string
+  content: string
+  exists: boolean
 }
 
-export async function generate(options: GenerateOptions): Promise<GenerateResult> {
+/**
+ * Computes every file that would be written, without touching the disk.
+ * The CLI uses this for an accurate file count and to warn before
+ * overwriting existing files.
+ */
+export function plan(options: GenerateOptions): PlannedFile[] {
   const { platforms, packs, projectInfo, cwd, meetsMinPlaywrightVersion } = options
   const ctx = buildContext(projectInfo, { meetsMinPlaywrightVersion })
-  const files: string[] = []
 
-  // Resolve skills directory (relative to this file in dist or source)
   const skillsDir = resolveSkillsDir()
+  const skillFiles = collectSkillFiles(skillsDir, packs, ctx)
 
-  // Collect all skill files based on selected packs
+  const planned: PlannedFile[] = []
+
+  for (const platform of platforms) {
+    switch (platform) {
+      case 'claude':
+        planned.push(...planClaude(cwd, skillFiles, skillsDir, ctx))
+        break
+      case 'cursor':
+        planned.push(...planCursor(cwd, skillFiles, skillsDir, ctx))
+        break
+      case 'copilot':
+        planned.push(...planCopilot(cwd, skillFiles, skillsDir, ctx))
+        break
+      case 'generic':
+        planned.push(...planGeneric(cwd, skillFiles, skillsDir, ctx))
+        break
+      default:
+        throw new Error(`Unknown platform: ${platform}`)
+    }
+  }
+
+  return planned
+}
+
+export function writePlannedFiles(planned: PlannedFile[]): string[] {
+  const written: string[] = []
+  for (const file of planned) {
+    writeFile(file.path, file.content)
+    written.push(file.path)
+  }
+  return written
+}
+
+function collectSkillFiles(skillsDir: string, packs: string[], ctx: ReturnType<typeof buildContext>): SkillFile[] {
   // All files go through renderTemplate to resolve version conditionals
   const skillFiles: SkillFile[] = []
 
   if (packs.includes('core')) {
-    skillFiles.push(
-      { type: 'core', name: 'playwright-patterns.md', content: renderTemplate(readSkill(skillsDir, 'core/playwright-patterns.md'), ctx) },
-      { type: 'core', name: 'data-strategy.md', content: renderTemplate(readSkill(skillsDir, 'core/data-strategy.md'), ctx) },
-      { type: 'core', name: 'test-review.md', content: renderTemplate(readSkill(skillsDir, 'core/test-review.md'), ctx) },
-    )
+    for (const name of ['playwright-patterns.md', 'data-strategy.md', 'test-review.md']) {
+      skillFiles.push({ type: 'core', name, content: renderTemplate(readSkill(skillsDir, `core/${name}`), ctx) })
+    }
   }
 
   if (packs.includes('playwright-cli')) {
-    skillFiles.push(
-      { type: 'playwright-cli', name: 'SKILL.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/SKILL.md'), ctx) },
-      { type: 'playwright-cli', name: 'references/request-mocking.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/request-mocking.md'), ctx) },
-      { type: 'playwright-cli', name: 'references/running-code.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/running-code.md'), ctx) },
-      { type: 'playwright-cli', name: 'references/session-management.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/session-management.md'), ctx) },
-      { type: 'playwright-cli', name: 'references/storage-state.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/storage-state.md'), ctx) },
-      { type: 'playwright-cli', name: 'references/test-generation.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/test-generation.md'), ctx) },
-      { type: 'playwright-cli', name: 'references/tracing.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/tracing.md'), ctx) },
-      { type: 'playwright-cli', name: 'references/video-recording.md', content: renderTemplate(readSkill(skillsDir, 'playwright-cli/references/video-recording.md'), ctx) },
-    )
+    const cliFiles = [
+      'SKILL.md',
+      'references/request-mocking.md',
+      'references/running-code.md',
+      'references/session-management.md',
+      'references/storage-state.md',
+      'references/test-generation.md',
+      'references/tracing.md',
+      'references/video-recording.md',
+    ]
+    for (const name of cliFiles) {
+      skillFiles.push({ type: 'playwright-cli', name, content: renderTemplate(readSkill(skillsDir, `playwright-cli/${name}`), ctx) })
+    }
   }
 
   if (packs.includes('templates')) {
-    skillFiles.push(
-      { type: 'template', name: 'page-object-conventions.md', content: renderTemplate(readSkill(skillsDir, 'templates/page-object-conventions.md'), ctx) },
-      { type: 'template', name: 'project-conventions.md', content: renderTemplate(readSkill(skillsDir, 'templates/project-conventions.md'), ctx) },
-      { type: 'template', name: 'test-debugging.md', content: renderTemplate(readSkill(skillsDir, 'templates/test-debugging.md'), ctx) },
-      { type: 'template', name: 'test-generation.md', content: renderTemplate(readSkill(skillsDir, 'templates/test-generation.md'), ctx) },
-      { type: 'template', name: 'test-planning.md', content: renderTemplate(readSkill(skillsDir, 'templates/test-planning.md'), ctx) },
-    )
-  }
-
-  // Generate for each platform
-  for (const platform of platforms) {
-    let platformFiles: string[]
-
-    switch (platform) {
-      case 'claude':
-        platformFiles = generateClaude(cwd, skillFiles, skillsDir, ctx)
-        break
-      case 'cursor':
-        platformFiles = generateCursor(cwd, skillFiles, skillsDir, ctx)
-        break
-      case 'copilot':
-        platformFiles = generateCopilot(cwd, skillFiles, skillsDir, ctx)
-        break
-      case 'generic':
-        platformFiles = generateGeneric(cwd, skillFiles, skillsDir, ctx)
-        break
-      default:
-        continue
+    const templateFiles = [
+      'page-object-conventions.md',
+      'project-conventions.md',
+      'test-debugging.md',
+      'test-generation.md',
+      'test-planning.md',
+    ]
+    for (const name of templateFiles) {
+      skillFiles.push({ type: 'template', name, content: renderTemplate(readSkill(skillsDir, `templates/${name}`), ctx) })
     }
-
-    files.push(...platformFiles)
   }
 
-  return {
-    filesCreated: files.length,
-    files,
-  }
+  return skillFiles
 }
 
 function resolveSkillsDir(): string {
@@ -123,6 +138,10 @@ export interface SkillFile {
   type: 'core' | 'template' | 'playwright-cli'
   name: string
   content: string
+}
+
+export function plannedFile(path: string, content: string): PlannedFile {
+  return { path, content, exists: existsSync(path) }
 }
 
 export function writeFile(filePath: string, content: string): void {

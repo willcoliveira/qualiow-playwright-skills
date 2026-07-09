@@ -1,23 +1,63 @@
 import * as p from '@clack/prompts'
 import pc from 'picocolors'
 import { detectProject } from './prompts.js'
-import { generate } from './generator.js'
+import { plan, writePlannedFiles, relativePath } from './generator.js'
+import { getVersion } from './version.js'
 
-const VERSION = '1.1.0'
+export interface CliFlags {
+  force: boolean
+  help: boolean
+  version: boolean
+}
 
-export async function cli(command: string, _args: string[]) {
-  p.intro(`${pc.bold(pc.cyan('wico'))} — Playwright Agent Skills ${pc.dim(`v${VERSION}`)}`)
-
-  if (command === 'init') {
-    await init()
-  } else {
-    p.log.error(`Unknown command: ${command}`)
-    p.log.info('Available commands: init')
-    process.exit(1)
+export function parseFlags(args: string[]): CliFlags {
+  return {
+    force: args.includes('--force') || args.includes('-f'),
+    help: args.includes('--help') || args.includes('-h'),
+    version: args.includes('--version') || args.includes('-v'),
   }
 }
 
-async function init() {
+const HELP = `
+${pc.bold(pc.cyan('wico'))} — Playwright Agent Skills
+
+Usage:
+  wico-playwright-agent-skills [command] [flags]
+
+Commands:
+  init          Scaffold agent skills into the current project (default)
+
+Flags:
+  -f, --force   Overwrite existing files without asking
+  -h, --help    Show this help
+  -v, --version Show version
+`
+
+export async function cli(command: string, args: string[]) {
+  const flags = parseFlags([command, ...args])
+
+  if (flags.version) {
+    console.log(getVersion())
+    return
+  }
+
+  if (flags.help) {
+    console.log(HELP)
+    return
+  }
+
+  p.intro(`${pc.bold(pc.cyan('wico'))} — Playwright Agent Skills ${pc.dim(`v${getVersion()}`)}`)
+
+  if (command === 'init' || command.startsWith('-')) {
+    await init(flags)
+  } else {
+    p.log.error(`Unknown command: ${command}`)
+    p.log.info('Available commands: init')
+    process.exitCode = 1
+  }
+}
+
+async function init(flags: CliFlags) {
   // Step 1: Project Detection
   p.log.step(`${pc.bold('Step 1:')} Project Detection`)
   const detection = await detectProject()
@@ -59,7 +99,7 @@ async function init() {
 
   if (p.isCancel(platforms)) {
     p.cancel('Setup cancelled.')
-    process.exit(0)
+    return
   }
 
   // Step 3: Skill Packs
@@ -88,7 +128,7 @@ async function init() {
 
   if (p.isCancel(packs)) {
     p.cancel('Setup cancelled.')
-    process.exit(0)
+    return
   }
 
   // Step 4: Project Info (only if templates selected)
@@ -108,35 +148,47 @@ async function init() {
       placeholder: 'my-e2e-suite',
       defaultValue: 'my-e2e-suite',
     })
-    if (p.isCancel(projectName)) { p.cancel('Setup cancelled.'); process.exit(0) }
+    if (p.isCancel(projectName)) { p.cancel('Setup cancelled.'); return }
 
     const baseUrl = await p.text({
       message: 'Base URL:',
       placeholder: 'https://staging.example.com',
       defaultValue: 'https://staging.example.com',
+      validate: (value) => {
+        if (!value) return undefined
+        try {
+          const url = new URL(value)
+          if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+            return 'Base URL must start with http:// or https://'
+          }
+        } catch {
+          return 'Enter a valid URL (e.g. https://staging.example.com)'
+        }
+        return undefined
+      },
     })
-    if (p.isCancel(baseUrl)) { p.cancel('Setup cancelled.'); process.exit(0) }
+    if (p.isCancel(baseUrl)) { p.cancel('Setup cancelled.'); return }
 
     const fixtureImportPath = await p.text({
       message: 'Fixture import path (or "none" for @playwright/test):',
       placeholder: '../fixtures/test-fixture',
       defaultValue: '',
     })
-    if (p.isCancel(fixtureImportPath)) { p.cancel('Setup cancelled.'); process.exit(0) }
+    if (p.isCancel(fixtureImportPath)) { p.cancel('Setup cancelled.'); return }
 
     const pageObjectsDir = await p.text({
       message: 'Page objects directory:',
       placeholder: 'src/pages',
       defaultValue: 'src/pages',
     })
-    if (p.isCancel(pageObjectsDir)) { p.cancel('Setup cancelled.'); process.exit(0) }
+    if (p.isCancel(pageObjectsDir)) { p.cancel('Setup cancelled.'); return }
 
     const testDir = await p.text({
       message: 'Test directory pattern:',
       placeholder: 'src/tests',
       defaultValue: 'src/tests',
     })
-    if (p.isCancel(testDir)) { p.cancel('Setup cancelled.'); process.exit(0) }
+    if (p.isCancel(testDir)) { p.cancel('Setup cancelled.'); return }
 
     projectInfo = {
       projectName: projectName as string,
@@ -150,72 +202,63 @@ async function init() {
   // Step 5: Confirm & Generate
   p.log.step(`${pc.bold('Step 5:')} Confirm & Generate`)
 
-  const fileCount = estimateFileCount(platforms as string[], packs as string[])
+  const plannedFiles = plan({
+    platforms: platforms as string[],
+    packs: packs as string[],
+    projectInfo,
+    cwd: process.cwd(),
+    meetsMinPlaywrightVersion: detection.meetsMinVersion,
+  })
+
+  const existing = plannedFiles.filter(f => f.exists)
 
   const confirm = await p.confirm({
-    message: `Will create ~${fileCount} files across ${(platforms as string[]).length} platform(s). Proceed?`,
+    message: `Will create ${plannedFiles.length} files across ${(platforms as string[]).length} platform(s). Proceed?`,
   })
 
   if (p.isCancel(confirm) || !confirm) {
     p.cancel('Setup cancelled.')
-    process.exit(0)
+    return
+  }
+
+  // Overwrite protection: never silently clobber existing files
+  if (existing.length > 0 && !flags.force) {
+    p.log.warn(`${existing.length} file(s) already exist and will be ${pc.bold('overwritten')}:`)
+    for (const file of existing.slice(0, 10)) {
+      p.log.message(pc.dim(`  ${relativePath(process.cwd(), file.path)}`))
+    }
+    if (existing.length > 10) {
+      p.log.message(pc.dim(`  ...and ${existing.length - 10} more`))
+    }
+
+    const overwrite = await p.confirm({
+      message: 'Overwrite existing files? (use --force to skip this check)',
+    })
+
+    if (p.isCancel(overwrite) || !overwrite) {
+      p.cancel('Setup cancelled — no files were written.')
+      return
+    }
   }
 
   const s = p.spinner()
   s.start('Generating files...')
 
   try {
-    const result = await generate({
-      platforms: platforms as string[],
-      packs: packs as string[],
-      projectInfo,
-      cwd: process.cwd(),
-      meetsMinPlaywrightVersion: detection.meetsMinVersion,
-    })
+    const written = writePlannedFiles(plannedFiles)
 
-    s.stop(`Generated ${result.filesCreated} files`)
+    s.stop(`Generated ${written.length} files`)
 
-    for (const file of result.files) {
-      p.log.success(pc.dim(file))
+    for (const file of written) {
+      p.log.success(pc.dim(relativePath(process.cwd(), file)))
     }
 
     p.outro(`Done! Next: customize ${pc.cyan('<!-- YOUR PROJECT: ... -->')} markers`)
   } catch (err) {
     s.stop('Failed')
-    p.log.error(String(err))
-    process.exit(1)
+    p.log.error(err instanceof Error ? err.message : String(err))
+    process.exitCode = 1
   }
-}
-
-function estimateFileCount(platforms: string[], packs: string[]): number {
-  let total = 0
-
-  const coreCount = 3
-  const cliCount = 8
-  const templateCount = 5
-
-  for (const platform of platforms) {
-    if (platform === 'copilot') {
-      // Copilot always produces a single consolidated file
-      total += 1
-      continue
-    }
-
-    // 1 index file per platform
-    let count = 1
-
-    if (packs.includes('core')) count += coreCount
-    if (packs.includes('templates')) count += templateCount
-
-    if (packs.includes('playwright-cli')) {
-      // Cursor only writes the SKILL.md index, not the 7 reference files
-      count += platform === 'cursor' ? 1 : cliCount
-    }
-
-    total += count
-  }
-
-  return total
 }
 
 export interface ProjectInfo {

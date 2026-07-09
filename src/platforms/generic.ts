@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { readFileSync } from 'node:fs'
-import { writeFile, relativePath, type SkillFile } from '../generator.js'
+import { plannedFile, type PlannedFile, type SkillFile } from '../generator.js'
 import { renderTemplate, type TemplateContext } from '../template-engine.js'
 
 /**
@@ -12,37 +12,27 @@ import { renderTemplate, type TemplateContext } from '../template-engine.js'
  *   .agent-skills/references/playwright-cli/SKILL.md
  *   .agent-skills/references/playwright-cli/references/*.md
  */
-export function generateGeneric(cwd: string, skillFiles: SkillFile[], skillsDir: string, ctx: TemplateContext): string[] {
-  const files: string[] = []
+export function planGeneric(cwd: string, skillFiles: SkillFile[], skillsDir: string, ctx: TemplateContext): PlannedFile[] {
+  const files: PlannedFile[] = []
   const baseDir = join(cwd, '.agent-skills')
   const refsDir = join(baseDir, 'references')
 
-  // Write SKILL.md index
+  // SKILL.md index
   const indexContent = renderTemplate(readFileSync(join(skillsDir, 'indexes', 'skill-index.md'), 'utf-8'), ctx)
-  const indexPath = join(baseDir, 'SKILL.md')
-  writeFile(indexPath, indexContent)
-  files.push(relativePath(cwd, indexPath))
+  files.push(plannedFile(join(baseDir, 'SKILL.md'), indexContent))
 
-  // Write core + template files as references
+  // Core + template files as references
   for (const skill of skillFiles) {
     if (skill.type === 'core' || skill.type === 'template') {
-      const filePath = join(refsDir, skill.name)
-      writeFile(filePath, skill.content)
-      files.push(relativePath(cwd, filePath))
+      files.push(plannedFile(join(refsDir, skill.name), skill.content))
     }
   }
 
-  // Write playwright-cli as a nested skill
-  const hasPlaywrightCli = skillFiles.some(s => s.type === 'playwright-cli')
-  if (hasPlaywrightCli) {
-    const cliDir = join(refsDir, 'playwright-cli')
-
-    for (const skill of skillFiles) {
-      if (skill.type === 'playwright-cli') {
-        const filePath = join(cliDir, skill.name)
-        writeFile(filePath, skill.content)
-        files.push(relativePath(cwd, filePath))
-      }
+  // playwright-cli as a nested skill
+  const cliDir = join(refsDir, 'playwright-cli')
+  for (const skill of skillFiles) {
+    if (skill.type === 'playwright-cli') {
+      files.push(plannedFile(join(cliDir, skill.name), skill.content))
     }
   }
 
