@@ -96,7 +96,7 @@ The CLI walks you through 5 steps:
 
   Step 5: Confirm & Generate
   ─────────────────────────
-  Will create 24 files across 3 platforms.
+  Will create 32 files across 3 platforms.
   Proceed? (Y/n)
 
   ✓ Done! Next: customize <!-- YOUR PROJECT: ... --> markers
@@ -155,7 +155,9 @@ These are generic Playwright best practices that apply to any project:
 | Skill | What It Covers |
 |-------|----------------|
 | **playwright-patterns** | `waitForResponse` ordering, `toPass` retry blocks with short inner timeouts, `expect.poll` for API polling, network-first safeguards, Zod validation |
+| **api-testing-patterns** | Testing an HTTP service with no browser: `APIRequestContext`, per-call credentials for negative auth tests, throwing vs raw clients, schema-validated responses, budgets derived from the service's own timings, delta assertions on shared environments, known-defect markers, request budgets |
 | **data-strategy** | When to use static data vs dynamic factories, decision criteria table, factory pattern template with `@faker-js/faker` |
+| **pass-rate-and-flake-analysis** | Proving determinism by running a suite N times: the four outcomes a JSON report distinguishes, per-test stability across runs, a triage order that checks the product before the network, and why `retries` hide races |
 | **test-review** | 7-category review checklist (assertions, selectors, timing, isolation, POM, readability, reliability), quality gates, severity definitions |
 
 #### Playwright CLI Reference (shipped as-is)

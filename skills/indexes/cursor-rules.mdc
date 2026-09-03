@@ -10,6 +10,8 @@ globs: "**/*.spec.ts,**/*.page.ts,**/test-flows/**,**/fixtures/**,**/helpers/**"
 - **Write a NEW test:** Read test-planning → explore with playwright-cli → write using test-generation → review with test-review
 {{#if HAS_PLAYWRIGHT_159}}- **Debug a FAILING test:** Follow test-debugging workflow → use `--debug=cli` + CLI trace analysis → classify root cause → fix or report bug{{/if}}
 {{#if NO_PLAYWRIGHT_159}}- **Debug a FAILING test:** Follow test-debugging workflow → classify root cause → fix or report bug{{/if}}
+- **Test an API with no browser:** api-testing-patterns (APIRequestContext, zod contracts, bounded polling, request budgets)
+- **Prove determinism:** pass-rate-and-flake-analysis (N consecutive runs, the four outcomes, flake triage)
 - **Understand PATTERNS:** playwright-patterns (waitForResponse, toPass, expect.poll), data-strategy, page-object-conventions
 - **Follow CONVENTIONS:** project-conventions (MUST/SHOULD/WON'T rules)
 
