@@ -14,6 +14,12 @@ What do you need to do?
 {{#if HAS_PLAYWRIGHT_159}}│  ├─ Agent debug (CLI) → references/test-debugging.md (uses --debug=cli + trace analysis)
 {{/if}}│  └─ Diagnose & fix    → references/test-debugging.md
 │
+├─ Test an API (no browser)
+│  └─ Request context, polling, contracts → references/api-testing-patterns.md
+│
+├─ Prove the suite is DETERMINISTIC
+│  └─ N runs, pass rate, flake triage → references/pass-rate-and-flake-analysis.md
+│
 ├─ Understand PATTERNS
 │  ├─ Playwright APIs   → references/playwright-patterns.md
 │  ├─ Test data         → references/data-strategy.md
@@ -33,3 +39,5 @@ What do you need to do?
 {{#if HAS_PLAYWRIGHT_159}}- **When tests fail:** Follow `test-debugging.md` workflow → use `--debug=cli` + trace analysis → classify root cause → fix or report bug{{/if}}
 {{#if NO_PLAYWRIGHT_159}}- **When tests fail:** Follow `test-debugging.md` workflow → classify root cause → fix or report bug{{/if}}
 - **For patterns:** Check `playwright-patterns.md` for waitForResponse, toPass, expect.poll
+- **For API-only suites:** `api-testing-patterns.md` — APIRequestContext, schema-validated responses, bounded polling, request budgets, known-defect markers
+- **Before claiming a suite is stable:** `pass-rate-and-flake-analysis.md` — run it N times and report the distribution, not one green run

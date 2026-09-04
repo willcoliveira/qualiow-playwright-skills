@@ -75,7 +75,13 @@ function collectSkillFiles(skillsDir: string, packs: string[], ctx: ReturnType<t
   const skillFiles: SkillFile[] = []
 
   if (packs.includes('core')) {
-    for (const name of ['playwright-patterns.md', 'data-strategy.md', 'test-review.md']) {
+    for (const name of [
+      'playwright-patterns.md',
+      'api-testing-patterns.md',
+      'data-strategy.md',
+      'pass-rate-and-flake-analysis.md',
+      'test-review.md',
+    ]) {
       skillFiles.push({ type: 'core', name, content: renderTemplate(readSkill(skillsDir, `core/${name}`), ctx) })
     }
   }
