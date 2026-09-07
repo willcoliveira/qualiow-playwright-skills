@@ -41,3 +41,70 @@ jobs:
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+
+  e2e:
+    name: Generated output
+    runs-on: ubuntu-latest
+    needs: ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Package contents
+        run: |
+          npm pack --dry-run --json > pack.json
+          node -e '
+            const files = require("./pack.json")[0].files.map(f => f.path)
+            const required = ["dist/bin/init.js", "skills/indexes/skill.md", "skills/core/agent-debugging.md", "skills/templates/test-generation.md"]
+            const missing = required.filter(f => !files.includes(f))
+            const vendored = files.filter(f => f.startsWith("skills/playwright-cli/"))
+            if (missing.length) { console.error("missing from package:", missing); process.exit(1) }
+            if (vendored.length) { console.error("vendored playwright-cli must not ship:", vendored); process.exit(1) }
+            console.log(`package ok: ${files.length} files`)
+          '
+
+      - name: Generate into a scratch project (non-interactive)
+        run: |
+          mkdir -p "$RUNNER_TEMP/proj" && cd "$RUNNER_TEMP/proj"
+          npm init -y > /dev/null
+          node "$GITHUB_WORKSPACE/dist/bin/init.js" init \
+            --platforms claude,cursor,copilot,agents \
+            --packs core,templates,playwright-cli \
+            --project-name scratch-e2e --base-url https://staging.example.com \
+            --yes
+          find . -type f -not -path './node_modules/*' | sort
+
+      - name: Validate generated output
+        run: npx tsx scripts/validate-output.ts "$RUNNER_TEMP/proj"
+
+      - name: Re-run is idempotent
+        run: |
+          cd "$RUNNER_TEMP/proj"
+          node "$GITHUB_WORKSPACE/dist/bin/init.js" init \
+            --platforms claude,cursor,copilot,agents \
+            --packs core,templates,playwright-cli \
+            --project-name scratch-e2e --base-url https://staging.example.com \
+            --yes | tee rerun.log
+          grep -q "Already up to date" rerun.log
+
+      - name: Overwrite protection and dry run
+        run: |
+          cd "$RUNNER_TEMP/proj"
+          echo "# edited" > .claude/skills/playwright-e2e/references/playwright-patterns.md
+          if node "$GITHUB_WORKSPACE/dist/bin/init.js" init --platforms claude --project-name scratch-e2e --yes; then
+            echo "expected a non-zero exit without --force"; exit 1
+          fi
+          node "$GITHUB_WORKSPACE/dist/bin/init.js" init --platforms claude --project-name scratch-e2e --dry-run --yes
+          test "$(cat .claude/skills/playwright-e2e/references/playwright-patterns.md)" = "# edited"
+          node "$GITHUB_WORKSPACE/dist/bin/init.js" init --platforms claude --project-name scratch-e2e --yes --force
+          npx tsx "$GITHUB_WORKSPACE/scripts/validate-output.ts" "$RUNNER_TEMP/proj"
