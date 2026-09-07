@@ -24,6 +24,13 @@ Rework around native Agent Skills support in Cursor, GitHub Copilot, Codex and G
 - Output validator (`src/validate.ts`, `scripts/validate-output.ts`) run over every platform × pack × version × fixture combination in tests and in a CI end-to-end job.
 - Template engine: `{{else}}`, nested blocks, blank-line collapsing that leaves fenced code alone, and an error on unknown condition keys.
 
+### Merged from 1.3.0
+
+- `api-testing-patterns.md` and `pass-rate-and-flake-analysis.md` (added on main in 1.3.0) are carried
+  forward, wired into the new index, and cross-linked with `ci-and-flake-triage.md` so their scopes do
+  not overlap. They needed no generator change: reference files are now discovered by reading the pack
+  directory.
+
 ### Fixed
 
 - Cursor and Copilot output wrapped an already-frontmattered file in a second frontmatter block and dropped every linked reference.
@@ -32,6 +39,10 @@ Rework around native Agent Skills support in Cursor, GitHub Copilot, Codex and G
 - The custom-fixture spec template imported `test` but used `expect`; `goto` hardcoded the base URL; tags were in titles instead of `{ tag: [...] }`.
 - Contradictory guidance: trace "off on CI" vs `on-first-retry`; 3-tier vs 5-tier selector ladder; `frameLocator` listed as a selector priority; undeclared `request` and `UserSchema` in examples; Cursor rule without `alwaysApply` and with quoted globs.
 - Confirm prompts default to a safe answer; cancelling exits non-zero; `plan()` errors are reported instead of crashing.
+
+## 1.3.0
+
+- `api-testing-patterns` and `pass-rate-and-flake-analysis` core references.
 
 ## 1.2.0
 

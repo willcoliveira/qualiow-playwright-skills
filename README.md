@@ -78,10 +78,12 @@ The Copilot marker block is merged: anything you wrote outside `<!-- wico-playwr
 | Reference | Covers |
 |-----------|--------|
 | `playwright-patterns.md` | `waitForResponse` ordering, `toPass` with short inner timeouts, `expect.poll`, network-first safeguards, Zod validation |
+| `api-testing-patterns.md` | Testing an HTTP service with no browser: `APIRequestContext`, per-call credentials for negative auth tests, schema-validated responses, budgets from the service's own timings, delta assertions on shared environments |
 | `locators-and-assertions.md` | Strict mode, selector ladder, `filter`/`and`/`or`, `.contentFrame()`, web-first and soft assertions, aria snapshots, `toHaveScreenshot`, `page.route`/HAR, `page.clock` |
 | `fixtures-and-auth.md` | `base.extend` test/worker fixtures, `test.use`, option fixtures, `mergeTests`, setup project + `storageState`, per-role and per-worker accounts |
 | `data-strategy.md` | Static data vs dynamic factories, decision table |
 | `test-review.md` | 7-category checklist, quality gates, severity levels |
+| `pass-rate-and-flake-analysis.md` | Proving determinism by running a suite N times: the four outcomes a JSON report distinguishes, per-test stability, why `retries` hide races |
 | `ci-and-flake-triage.md` | CI config, `describe.configure`, sharding with blob reports, GitHub Actions example, `test.fail/fixme/slow`, flake triage |
 | `agent-debugging.md` | The `--debug=cli` attach loop, terminal trace triage, `browser.bind()`; falls back to Inspector/UI mode/`show-trace` on Playwright < 1.59 |
 

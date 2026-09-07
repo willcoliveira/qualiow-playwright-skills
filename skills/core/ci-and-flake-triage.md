@@ -163,6 +163,8 @@ A test is flaky when it fails and then passes on retry with no code change. Retr
 
 ### Retries are a safety net, not a strategy
 
-- Keep `retries` at 1–2 on CI and 0 locally so flakes are visible while developing.
+- Keep `retries` at 1–2 on CI and 0 locally so flakes are visible while developing. Use `retries: 0`
+  for anything asserting on money or correctness, where a retry turns a real race into a green tick;
+  `pass-rate-and-flake-analysis.md` covers how to prove determinism rather than retry around it.
 - Track the flaky count per week; a rising number means the suite is losing trust.
 - Any test that needed a retry in three consecutive runs gets a ticket.
