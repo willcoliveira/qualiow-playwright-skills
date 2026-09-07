@@ -21,7 +21,8 @@
 
 ### 2. Selectors
 
-- [ ] Priority order: `getByRole()` > `getByTestId()` > CSS selectors
+- [ ] Follows the selector ladder: `getByRole()` > `getByLabel()` > `getByText()` > `getByTestId()` > CSS
+- [ ] No `first()`/`nth()` used to paper over a `strict mode violation`
 - [ ] No XPath selectors
 - [ ] Uses `{ exact: true }` where text could match multiple elements
 - [ ] Selectors are stable — not tied to dynamic classes, indexes, or layout
@@ -61,7 +62,7 @@
 - [ ] No `{ force: true }` on click or other actions
 - [ ] No `page.evaluate()` / `page.addInitScript()` workarounds
 - [ ] No deprecated APIs (`waitForNavigation`, `Promise.all` with navigation)
-- [ ] No `test.only()` or `test.skip()` in committed code
+- [ ] No `test.only()` or bare `test.skip()` in committed code (conditional `test.skip(cond, reason)`, `test.fixme(true, 'TICKET')` and `test.fail(true, 'TICKET')` are acceptable)
 
 ---
 
@@ -74,7 +75,7 @@ Quantitative thresholds for test quality. Flag violations as `CRITICAL`.
 | Test file length | < 300 lines | Long files indicate missing abstractions or test flows |
 | Single test execution time | < 90 seconds | Slow tests slow CI and are more likely to be flaky |
 | Assertions per test | >= 1 explicit | Tests without assertions verify nothing |
-| Skipped tests | 0 in committed code | Skipped tests are invisible failures |
+| Bare skipped tests | 0 in committed code | A skip without a condition and reason is an invisible failure |
 | `.only` tests | 0 in committed code | `.only` silently skips the rest of the suite |
 
 ---

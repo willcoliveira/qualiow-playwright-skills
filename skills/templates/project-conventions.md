@@ -4,14 +4,14 @@
 
 ### MUST
 
-1. **MUST** import `test` from your custom fixture file, NOT from `@playwright/test` (if using custom fixtures)
+1. **MUST** import `test` and `expect` from {{#if HAS_CUSTOM_FIXTURE}}`{{FIXTURE_IMPORT_PATH}}`{{else}}the project fixtures file once one exists{{/if}}, NOT from `@playwright/test`
 2. **MUST** use web-first assertions (`await expect(locator).toBeVisible()`) — never one-shot checks (`expect(await locator.isVisible()).toBe(true)`)
 3. **MUST** use named timeout constants instead of hardcoded numbers
 4. **MUST** wrap page object methods in `test.step()` for trace reporting
 5. **MUST** use POM pattern — locators as readonly class properties, methods for interactions
 6. **MUST** use short inner timeouts inside `toPass` blocks (e.g. `{ timeout: 1_000 }` for inner assertions when outer `toPass` has `{ timeout: 30_000 }`)
 7. **MUST** clean up test resources in `afterEach` hooks (cancel orders, release reservations, etc.)
-8. **MUST** tag tests appropriately for CI filtering
+8. **MUST** tag tests for CI filtering using the options object (`test.describe('Checkout', { tag: ['@smoke'] }, ...)`), not the title
 
 <!-- YOUR PROJECT: Add project-specific MUST rules here -->
 <!-- Example:
@@ -22,7 +22,7 @@
 ### SHOULD
 
 1. **SHOULD** use `test.step()` in test specs for complex multi-step assertions
-2. **SHOULD** prefer `getByRole()` over `getByTestId()` over CSS selectors
+2. **SHOULD** follow the selector ladder: `getByRole()` > `getByLabel()` > `getByText()` > `getByTestId()` > CSS
 3. **SHOULD** cross-reference the source application repo for selectors and component structure
 4. **SHOULD** add comments explaining non-obvious timeouts or workarounds
 5. **SHOULD** use descriptive test names that explain the user journey, not the implementation
@@ -33,8 +33,8 @@
    - `SHORT` (5s) — quick visibility checks
    - `MEDIUM` (10s) — standard interactions
    - `LONG` (15s) — slow-loading elements (iframes, heavy pages)
-   - `ACTION` (30s) — action timeouts
-   - `EXTENDED` (60s) — retryable operations (toPass, polling)
+   - `ACTION` (30s) — `actionTimeout` in config (Playwright's default is 0 = no limit, so set one)
+   - `EXTENDED` (60s) — retryable operations (`toPass`, `expect.poll`)
 
 <!-- YOUR PROJECT: Add project-specific SHOULD rules here -->
 
@@ -44,7 +44,7 @@
 2. **WON'T** use `page.waitForTimeout()` for synchronization (use `expect().toBeVisible()` or `waitFor()` instead)
 3. **WON'T** use hardcoded credentials in test files (use env vars via `.env` or CI secrets)
 4. **WON'T** take full-page screenshots in tests (use Playwright's `screenshot: 'only-on-failure'` config)
-5. **WON'T** use `test.only()` or `test.skip()` in committed code (CI uses `forbidOnly: true`)
+5. **WON'T** commit `test.only()` or a bare `test.skip()` (CI uses `forbidOnly: true`); conditional `test.skip(cond, reason)`, `test.fixme(true, 'TICKET')` and `test.fail(true, 'TICKET')` are fine
 6. **WON'T** commit `.env` files or expose secrets in traces
 7. **WON'T** duplicate test coverage already handled by unit/component tests in the source repo
 8. **WON'T** use magic number timeouts — always use named constants
@@ -72,7 +72,7 @@
 <!-- Example:
 - Group by feature area first
 - Then by scenario type (smoke, regression, etc.)
-- One `test.describe()` per file with tags in the describe title
+- One `test.describe()` per file with tags in the describe options (`{ tag: [...] }`)
 -->
 
 ### Page Objects
@@ -109,10 +109,12 @@ src/helpers/{utility-name}.ts  # General utilities
 
 <!-- YOUR PROJECT: Document your CI conventions here -->
 <!-- Example:
-- **Workers:** 2 on CI, 8 locally
+- **Workers:** 2 on CI, default locally
 - **Retries:** 2 on CI, 0 locally
-- **Trace:** Off on CI (credential exposure risk), on locally
-- **Reporter:** HTML only
+- **Trace:** `on-first-retry` on CI (traces contain cookies and request bodies; restrict artifact access), `on` locally when debugging
+- **Screenshots/video:** `only-on-failure` / `retain-on-failure`
+- **Reporter:** `blob` + `github` on CI (merged into HTML), `html` + `list` locally
+- **Sharding:** 4 shards on CI (see `ci-and-flake-triage.md`)
 - **Smoke tests** run in: this repo's pipeline + main app pipeline
 -->
 
