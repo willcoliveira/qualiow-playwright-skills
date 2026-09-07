@@ -1,15 +1,35 @@
-import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs'
-import { join, dirname, resolve, relative } from 'node:path'
+import { readFileSync, mkdirSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
+import { join, dirname, resolve, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { renderTemplate, buildContext } from './template-engine.js'
+import { renderTemplate, buildContext, type TemplateContext } from './template-engine.js'
 import { planClaude } from './platforms/claude.js'
 import { planCursor } from './platforms/cursor.js'
 import { planCopilot } from './platforms/copilot.js'
-import { planGeneric } from './platforms/generic.js'
-import type { ProjectInfo } from './cli.js'
+import { planAgents } from './platforms/agents.js'
+import { getVersion } from './version.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+
+export const PACKAGE_NAME = 'wico-playwright-agent-skills'
+
+export const PLATFORMS = ['claude', 'cursor', 'copilot', 'agents'] as const
+export type Platform = (typeof PLATFORMS)[number]
+/** Accepted on the command line / in prompts; `generic` is the pre-2.0 name of `agents`. */
+export const PLATFORM_ALIASES: Record<string, Platform> = { generic: 'agents' }
+
+export const PACKS = ['core', 'templates', 'playwright-cli'] as const
+export type Pack = (typeof PACKS)[number]
+/** Packs that ship markdown files. `playwright-cli` is handled by the installer bridge. */
+const CONTENT_PACKS = ['core', 'templates'] as const satisfies readonly Pack[]
+
+export interface ProjectInfo {
+  projectName: string
+  baseUrl: string
+  fixtureImportPath: string
+  pageObjectsDir: string
+  testDir: string
+}
 
 export interface GenerateOptions {
   platforms: string[]
@@ -17,131 +37,177 @@ export interface GenerateOptions {
   projectInfo: ProjectInfo
   cwd: string
   meetsMinPlaywrightVersion: boolean
+  /** Override the bundled skills directory (tests). */
+  skillsDir?: string
+  /** Override the version stamped into generated frontmatter (tests). */
+  generatorVersion?: string
 }
+
+export type FileStatus = 'new' | 'unchanged' | 'modified'
 
 export interface PlannedFile {
   path: string
   content: string
+  /** Whether a file already exists at `path` (kept for callers of 1.x). */
   exists: boolean
+  status: FileStatus
+  /** `merge` files preserve hand-written content around a marker block. */
+  mode: 'replace' | 'merge'
+}
+
+export interface SkillFile {
+  pack: (typeof CONTENT_PACKS)[number]
+  /** POSIX-style path relative to the pack directory, e.g. `playwright-patterns.md`. */
+  name: string
+  content: string
+}
+
+export interface PlanMeta {
+  generatorVersion: string
+}
+
+export function normalizePlatform(id: string): Platform {
+  const normalized = PLATFORM_ALIASES[id] ?? id
+  if (!(PLATFORMS as readonly string[]).includes(normalized)) {
+    throw new Error(`Unknown platform: ${id}`)
+  }
+  return normalized as Platform
+}
+
+export function normalizePack(id: string): Pack {
+  if (!(PACKS as readonly string[]).includes(id)) {
+    throw new Error(`Unknown pack: ${id}`)
+  }
+  return id as Pack
+}
+
+/** `core` is the base every index links to, so it is always part of a plan. */
+export function withRequiredPacks(packs: readonly string[]): Pack[] {
+  return [...new Set<Pack>(['core', ...packs.map(normalizePack)])]
 }
 
 /**
  * Computes every file that would be written, without touching the disk.
- * The CLI uses this for an accurate file count and to warn before
- * overwriting existing files.
+ * The CLI uses this for `--dry-run`, for an accurate new/updated/unchanged
+ * summary, and to warn before overwriting existing files.
  */
 export function plan(options: GenerateOptions): PlannedFile[] {
-  const { platforms, packs, projectInfo, cwd, meetsMinPlaywrightVersion } = options
-  const ctx = buildContext(projectInfo, { meetsMinPlaywrightVersion })
+  const packs = withRequiredPacks(options.packs.map(normalizePack))
+  const platforms = [...new Set(options.platforms.map(normalizePlatform))]
+  const ctx = buildContext(options.projectInfo, { meetsMinPlaywrightVersion: options.meetsMinPlaywrightVersion, packs })
+  const meta: PlanMeta = { generatorVersion: options.generatorVersion ?? getVersion() }
 
-  const skillsDir = resolveSkillsDir()
+  const skillsDir = options.skillsDir ?? resolveSkillsDir()
   const skillFiles = collectSkillFiles(skillsDir, packs, ctx)
 
   const planned: PlannedFile[] = []
-
   for (const platform of platforms) {
     switch (platform) {
       case 'claude':
-        planned.push(...planClaude(cwd, skillFiles, skillsDir, ctx))
+        planned.push(...planClaude(options.cwd, skillFiles, skillsDir, ctx, meta))
         break
       case 'cursor':
-        planned.push(...planCursor(cwd, skillFiles, skillsDir, ctx))
+        planned.push(...planCursor(options.cwd, skillFiles, skillsDir, ctx, meta))
         break
       case 'copilot':
-        planned.push(...planCopilot(cwd, skillFiles, skillsDir, ctx))
+        planned.push(...planCopilot(options.cwd, skillFiles, skillsDir, ctx, meta))
         break
-      case 'generic':
-        planned.push(...planGeneric(cwd, skillFiles, skillsDir, ctx))
+      case 'agents':
+        planned.push(...planAgents(options.cwd, skillFiles, skillsDir, ctx, meta))
         break
-      default:
-        throw new Error(`Unknown platform: ${platform}`)
     }
   }
 
-  return planned
+  return dedupePlanned(planned)
 }
 
+/** Several platforms share `.agents/skills`; identical files are planned once. */
+function dedupePlanned(planned: PlannedFile[]): PlannedFile[] {
+  const byPath = new Map<string, PlannedFile>()
+  for (const file of planned) {
+    const key = resolve(file.path)
+    const existing = byPath.get(key)
+    if (!existing) {
+      byPath.set(key, file)
+    } else if (existing.content !== file.content) {
+      throw new Error(`Conflicting content planned for ${file.path}`)
+    }
+  }
+  return [...byPath.values()]
+}
+
+/** Writes new and modified files; unchanged files are skipped. Returns written paths. */
 export function writePlannedFiles(planned: PlannedFile[]): string[] {
   const written: string[] = []
   for (const file of planned) {
+    if (file.status === 'unchanged') continue
     writeFile(file.path, file.content)
     written.push(file.path)
   }
   return written
 }
 
-function collectSkillFiles(skillsDir: string, packs: string[], ctx: ReturnType<typeof buildContext>): SkillFile[] {
-  // All files go through renderTemplate to resolve version conditionals
+export function collectSkillFiles(skillsDir: string, packs: readonly string[], ctx: TemplateContext): SkillFile[] {
   const skillFiles: SkillFile[] = []
-
-  if (packs.includes('core')) {
-    for (const name of ['playwright-patterns.md', 'data-strategy.md', 'test-review.md']) {
-      skillFiles.push({ type: 'core', name, content: renderTemplate(readSkill(skillsDir, `core/${name}`), ctx) })
+  for (const pack of CONTENT_PACKS) {
+    if (!packs.includes(pack)) continue
+    for (const name of listPackFiles(join(skillsDir, pack))) {
+      skillFiles.push({ pack, name, content: renderTemplate(readSkill(skillsDir, `${pack}/${name}`), ctx) })
     }
   }
-
-  if (packs.includes('playwright-cli')) {
-    const cliFiles = [
-      'SKILL.md',
-      'references/request-mocking.md',
-      'references/running-code.md',
-      'references/session-management.md',
-      'references/storage-state.md',
-      'references/test-generation.md',
-      'references/tracing.md',
-      'references/video-recording.md',
-    ]
-    for (const name of cliFiles) {
-      skillFiles.push({ type: 'playwright-cli', name, content: renderTemplate(readSkill(skillsDir, `playwright-cli/${name}`), ctx) })
-    }
-  }
-
-  if (packs.includes('templates')) {
-    const templateFiles = [
-      'page-object-conventions.md',
-      'project-conventions.md',
-      'test-debugging.md',
-      'test-generation.md',
-      'test-planning.md',
-    ]
-    for (const name of templateFiles) {
-      skillFiles.push({ type: 'template', name, content: renderTemplate(readSkill(skillsDir, `templates/${name}`), ctx) })
-    }
-  }
-
   return skillFiles
 }
 
-function resolveSkillsDir(): string {
-  const candidates = [
-    // Running from source (tsx): src/generator.ts → ../skills
-    resolve(__dirname, '..', 'skills'),
-    // Running from dist/src/generator.js or dist/bin/init.js → ../../skills
-    resolve(__dirname, '..', '..', 'skills'),
-    // Running from deeply nested dist (e.g. dist/src/) → ../../../skills
-    resolve(__dirname, '..', '..', '..', 'skills'),
-  ]
-
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate
-  }
-
-  throw new Error(`Could not find skills directory. Checked:\n${candidates.map(c => `  ${c}`).join('\n')}`)
+/** Lists every `.md` file under `dir` (recursively) as sorted POSIX-relative names. */
+export function listPackFiles(dir: string): string[] {
+  if (!existsSync(dir)) return []
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+    .map(entry => relative(dir, join(entry.parentPath, entry.name)).split(sep).join('/'))
+    .sort()
 }
 
-function readSkill(skillsDir: string, relativePath: string): string {
-  const fullPath = join(skillsDir, relativePath)
+function resolveSkillsDir(): string {
+  // Walk up from this module until we find our own package.json; `skills/`
+  // sits next to it both in the repo (src/) and in the published package (dist/bin/).
+  let dir = __dirname
+  for (let i = 0; i < 5; i++) {
+    const pkgPath = join(dir, 'package.json')
+    if (existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
+        if (pkg.name === PACKAGE_NAME) {
+          const skills = join(dir, 'skills')
+          if (existsSync(skills)) return skills
+        }
+      } catch {}
+    }
+    const parent = dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  throw new Error(`Could not find the bundled skills directory next to ${PACKAGE_NAME}/package.json (searched upwards from ${__dirname})`)
+}
+
+export function readSkill(skillsDir: string, relPath: string): string {
+  const fullPath = join(skillsDir, relPath)
+  if (!existsSync(fullPath)) {
+    throw new Error(`Bundled skill file is missing: ${relPath} (looked in ${skillsDir})`)
+  }
   return readFileSync(fullPath, 'utf-8')
 }
 
-export interface SkillFile {
-  type: 'core' | 'template' | 'playwright-cli'
-  name: string
-  content: string
-}
-
-export function plannedFile(path: string, content: string): PlannedFile {
-  return { path, content, exists: existsSync(path) }
+export function plannedFile(path: string, content: string, mode: PlannedFile['mode'] = 'replace'): PlannedFile {
+  const exists = existsSync(path)
+  let status: FileStatus = 'new'
+  if (exists) {
+    let current: string | null = null
+    try {
+      current = readFileSync(path, 'utf-8')
+    } catch {}
+    status = current === content ? 'unchanged' : 'modified'
+  }
+  return { path, content, exists, status, mode }
 }
 
 export function writeFile(filePath: string, content: string): void {
@@ -150,5 +216,5 @@ export function writeFile(filePath: string, content: string): void {
 }
 
 export function relativePath(cwd: string, fullPath: string): string {
-  return relative(cwd, fullPath)
+  return relative(cwd, fullPath).split(sep).join('/')
 }
