@@ -1,315 +1,205 @@
 # wico — Playwright Agent Skills
 
-Reusable Playwright E2E testing knowledge for AI coding assistants. This project provides a CLI that scaffolds agent skills into any Playwright project, formatted for the platform you use — **Claude Code**, **Cursor**, **GitHub Copilot**, or a generic `.agent-skills/` directory.
+Reusable Playwright E2E testing knowledge for AI coding assistants, installed as a standard [Agent Skill](https://agentskills.io). One command scaffolds a `playwright-e2e` skill into your project for **Claude Code**, **Cursor**, **GitHub Copilot**, and any other agent that reads `.agents/skills/` (Codex, Gemini CLI, ...).
 
-## Project Description
+## What it does
 
-This project extracts the generic, battle-tested patterns from real-world Playwright E2E suites into a standalone, installable package. The idea is simple: instead of every QA engineer teaching their AI assistant the same Playwright best practices from scratch, you install a set of curated skills once and your agent immediately knows how to write, debug, and review tests properly.
+Instead of every QA engineer teaching their assistant the same Playwright practices from scratch, you install a curated skill once and the agent knows how to plan, write, review and debug tests properly. The skill covers:
 
-The skills cover:
-- Playwright API patterns (`waitForResponse`, `toPass`, `expect.poll`, network-first safeguards)
-- Test data strategy (static vs dynamic factories)
-- Page Object Model conventions (selectors, composition, naming)
-- Project conventions (MUST/SHOULD/WON'T rules, file organization, CI/CD)
-- Test debugging (failure patterns, root cause classification, app bug vs test bug decision tree)
-- Test generation and planning (templates, checklists, exploration workflow)
-- Playwright CLI reference (browser automation for interactive exploration)
+- Locators and assertions: strict mode, composition, soft assertions, aria snapshots, visual comparison, mocking, clock
+- Fixtures and authentication: `base.extend`, worker scope, setup projects and `storageState`
+- Playwright API patterns: `waitForResponse` ordering, `toPass`, `expect.poll`, network-first safeguards
+- Test data strategy: static data vs dynamic factories
+- CI and flake triage: sharding, reporters, retries, `describe.configure`, `test.fail/fixme/slow`
+- Agent debugging: `npx playwright test --debug=cli`, `playwright-cli attach`, trace triage from the terminal
+- Review checklist and quality gates
+- Optional project templates customised with your project info: conventions, page objects, debugging, generation, planning
 
-The CLI detects your project setup, asks which platforms and skill packs you want, replaces template placeholders with your project info, and generates the files in the right format for each platform.
+The CLI detects your Playwright version, generates the skill in the right place for each platform, and points you at Playwright's own installer for the official `playwright-cli` and `playwright-trace` skills.
 
-## How to Install
+## Install
 
-### Prerequisites
-
-- **Node.js** (>= v20) — Download from [nodejs.org](https://nodejs.org/en/download/)
-
-```bash
-node -v   # must be >= v20
-```
-
-### Quick Start
-
-Navigate to your Playwright project and run:
+Requires Node.js >= 20. In your Playwright project:
 
 ```bash
 npx wico-playwright-agent-skills init
 ```
 
-That's it. The CLI will detect your project, ask which platforms and skills you want, and generate the files.
+The CLI detects the project, asks which platforms and packs you want, and generates the files. Re-running is safe: unchanged files are skipped, changed files are listed before anything is overwritten.
 
-### CLI Flags
+### Non-interactive use (CI, scripts, agents)
+
+No prompts are shown with `--yes`, on CI, or without a TTY. Only `--platforms` is required; everything else has a default.
+
+```bash
+npx wico-playwright-agent-skills init --platforms claude,cursor --yes
+npx wico-playwright-agent-skills init --platforms claude --packs core,templates \
+    --project-name shop-e2e --base-url https://staging.shop.example --yes --force
+npx wico-playwright-agent-skills init --platforms copilot --dry-run
+```
+
+### Flags
 
 | Flag | Description |
 |------|-------------|
-| `-f, --force` | Overwrite existing files without asking |
-| `-h, --help` | Show help |
-| `-v, --version` | Show version |
+| `--platforms <list>` | Comma-separated: `claude`, `cursor`, `copilot`, `agents` (`generic` is accepted as an alias of `agents`) |
+| `--packs <list>` | Comma-separated: `core`, `templates`, `playwright-cli`. `core` is always included |
+| `--project-name <name>` | Used in the skill description and templates (default: `name` from `package.json`) |
+| `--base-url <url>` | Application base URL for the templates |
+| `--fixture-import-path <path>` | Custom fixture import path, or `none` for plain `@playwright/test` |
+| `--page-objects-dir <dir>` | Page objects directory (default `src/pages`) |
+| `--test-dir <dir>` | Test directory (default `src/tests`) |
+| `-y, --yes` / `--non-interactive` | Never prompt; use flags and defaults |
+| `--dry-run` | Print the plan and exit without writing |
+| `-f, --force` | Overwrite files that differ from the generated content |
+| `--clean-legacy` | Remove output left behind by 1.x without asking |
+| `--install-playwright-skills` | Run Playwright's own skill installer instead of printing the commands |
+| `-h, --help`, `-v, --version` | Help and version |
 
-If any of the target files already exist, the CLI lists them and asks for confirmation before overwriting — pass `--force` to skip that check (e.g. in scripts).
+Exit codes: `0` success or dry run, `1` usage error, refused overwrite or failed install, `130` cancelled.
 
-### Development Setup
+## What gets generated
 
-If you want to contribute or run from source:
+| Platform | Files |
+|----------|-------|
+| `claude` | `.claude/skills/playwright-e2e/SKILL.md` + `references/*.md` |
+| `cursor` | `.agents/skills/playwright-e2e/` + `.cursor/rules/playwright-e2e.mdc` (auto-attached pointer rule with the key rules) |
+| `copilot` | `.agents/skills/playwright-e2e/` + `.github/instructions/playwright-e2e.instructions.md` (path-specific rules) + a short marker block in `.github/copilot-instructions.md` |
+| `agents` | `.agents/skills/playwright-e2e/` only (read by Cursor, Copilot, Codex, Gemini CLI) |
+
+Cursor, Copilot and `agents` share one `.agents/skills/` tree, so selecting several of them writes the skill once. The `SKILL.md` frontmatter follows the Agent Skills spec (`name`, `description`) and carries a `metadata.generator` marker so later runs can recognise their own output.
+
+The Copilot marker block is merged: anything you wrote outside `<!-- wico-playwright-agent-skills:start/end -->` is preserved, and the block written by earlier versions is replaced.
+
+### Skill packs
+
+**core** (always installed) ships generic, project-independent references:
+
+| Reference | Covers |
+|-----------|--------|
+| `playwright-patterns.md` | `waitForResponse` ordering, `toPass` with short inner timeouts, `expect.poll`, network-first safeguards, Zod validation |
+| `api-testing-patterns.md` | Testing an HTTP service with no browser: `APIRequestContext`, per-call credentials for negative auth tests, schema-validated responses, budgets from the service's own timings, delta assertions on shared environments |
+| `locators-and-assertions.md` | Strict mode, selector ladder, `filter`/`and`/`or`, `.contentFrame()`, web-first and soft assertions, aria snapshots, `toHaveScreenshot`, `page.route`/HAR, `page.clock` |
+| `fixtures-and-auth.md` | `base.extend` test/worker fixtures, `test.use`, option fixtures, `mergeTests`, setup project + `storageState`, per-role and per-worker accounts |
+| `data-strategy.md` | Static data vs dynamic factories, decision table |
+| `test-review.md` | 7-category checklist, quality gates, severity levels |
+| `pass-rate-and-flake-analysis.md` | Proving determinism by running a suite N times: the four outcomes a JSON report distinguishes, per-test stability, why `retries` hide races |
+| `ci-and-flake-triage.md` | CI config, `describe.configure`, sharding with blob reports, GitHub Actions example, `test.fail/fixme/slow`, flake triage |
+| `agent-debugging.md` | The `--debug=cli` attach loop, terminal trace triage, `browser.bind()`; falls back to Inspector/UI mode/`show-trace` on Playwright < 1.59 |
+
+**templates** adds project-specific references rendered with your answers and `<!-- YOUR PROJECT: ... -->` markers to fill in:
+
+| Reference | Covers |
+|-----------|--------|
+| `project-conventions.md` | MUST/SHOULD/WON'T rules, file organisation, test data, CI conventions, ESLint plugin rules |
+| `page-object-conventions.md` | Class structure, selector priority, component composition, iframes, naming |
+| `test-generation.md` | Spec template, import rules, page objects in tests, form filling, fixtures and tags tables |
+| `test-planning.md` | Exploration with `playwright-cli`, flow phases, plan template, checklist |
+| `test-debugging.md` | Failure patterns, debugging workflow, root cause classification, app bug vs test bug decision tree, bug report template |
+
+**playwright-cli** writes no files. Playwright ships and installs its own `playwright-cli` and `playwright-trace` skills, so this pack detects your Playwright version and prints (or runs, with `--install-playwright-skills`) the official commands:
 
 ```bash
-# Clone the repository
+npx playwright cli install --skills            # → .claude/skills/playwright-cli/  (Playwright >= 1.62)
+npx playwright cli install --skills=agents     # → .agents/skills/playwright-cli/
+npx playwright trace install-skill             # → .claude/skills/playwright-trace/ (recent releases)
+```
+
+On older Playwright versions it prints the `npm i -g @playwright/cli@latest` alternative instead. The generator never writes into `*/skills/playwright-cli/` itself.
+
+### Playwright version detection
+
+The CLI reads the installed `@playwright/test` (or `playwright`) version from `node_modules`, walking up through parent directories for hoisted monorepo installs, and falls back to the range in `package.json`. Nothing from the project is executed.
+
+- **>= 1.59**: the references describe `npx playwright test --debug=cli`, `playwright-cli attach`, `npx playwright trace` and `browser.bind()`.
+- **< 1.59 or not found**: the same references describe the Playwright Inspector, UI mode and `show-trace` instead. Pre-releases count as below the version they precede.
+
+## Template placeholders
+
+Templates use `{{PLACEHOLDER}}` substitution and `{{#if}}...{{else}}...{{/if}}` blocks (nesting supported), rendered by a small built-in engine.
+
+| Placeholder | Description |
+|-------------|-------------|
+| `{{PROJECT_NAME}}` | Project name |
+| `{{BASE_URL}}` | Application base URL |
+| `{{FIXTURE_IMPORT_PATH}}` | Custom fixture import path (empty when `none`) |
+| `{{PAGE_OBJECTS_DIR}}` | Page objects directory |
+| `{{TEST_DIR}}` | Test directory |
+
+| Condition | True when |
+|-----------|-----------|
+| `HAS_CUSTOM_FIXTURE` | A fixture import path was given |
+| `HAS_PLAYWRIGHT_159` | Playwright >= 1.59 was detected |
+| `HAS_TEMPLATES` | The `templates` pack is selected |
+| `HAS_PLAYWRIGHT_CLI` | The `playwright-cli` pack is selected |
+
+## After setup
+
+1. Fill in the `<!-- YOUR PROJECT: ... -->` markers (components, fixtures, env vars, tags, flow phases).
+2. Adjust the MUST/SHOULD/WON'T rules in `project-conventions.md` to your team's agreements.
+3. Install the official Playwright skills (the CLI prints the commands).
+4. Ask your assistant to write a test or debug a failure and check that it follows the skill.
+
+## Upgrading from 1.x
+
+2.0.0 changes where files go and what they contain. Run `init` again in the project: the new files are written, the Copilot block is replaced in place, and anything 1.x left behind is listed:
+
+- `.agent-skills/` (the old generic output; no tool reads it)
+- the nine per-skill `.cursor/rules/*.mdc` files (replaced by one pointer rule plus `.agents/skills/`)
+- `.claude/skills/playwright-cli/` when it is the old vendored copy (reinstall the official skill afterwards)
+- references inside a generated skill directory that the selected packs no longer produce
+
+Confirm the removal interactively, or pass `--clean-legacy`. Files without positive evidence that this tool wrote them are never touched. See `CHANGELOG.md` for the full list of breaking changes.
+
+## Development
+
+```bash
 git clone git@github.com:willcoliveira/qualiow-playwright-skills.git
 cd qualiow-playwright-skills
-
-# Install dependencies
 npm install
+
+npm run dev -- init --platforms claude --dry-run   # run from source
+npm run lint                                        # type check
+npm test                                            # node:test suite
+npm run build                                       # single ESM bundle in dist/
+npx tsx scripts/validate-output.ts <project-dir>    # validate generated output
 ```
 
-## How to Use the CLI
+The test suite renders every platform × pack × version × fixture combination into a temp directory and validates the result: no unrendered template syntax, every relative link resolves, `SKILL.md` frontmatter matches the Agent Skills spec, Cursor rules and Copilot instructions have the required keys, and a second run reports every file unchanged. CI repeats that with the built package in a scratch project.
 
-The CLI walks you through 5 steps:
-
-```
-  wico — Playwright Agent Skills v1.2.0
-
-  Step 1: Project Detection
-  ─────────────────────────
-  ✓ Found playwright.config.ts
-  ✓ TypeScript project detected
-
-  Step 2: Agent Platform(s)
-  ─────────────────────────
-  Which AI assistant(s) do you use? (space to select)
-  > [x] Claude Code        → .claude/skills/
-    [x] Cursor              → .cursor/rules/
-    [ ] GitHub Copilot      → .github/copilot-instructions.md
-    [x] Generic             → .agent-skills/
-
-  Step 3: Skill Packs
-  ─────────────────────────
-  > [x] Core patterns (playwright-patterns, data-strategy, test-review)
-    [x] Playwright CLI reference
-    [x] Project templates (conventions, POM, debugging, generation, planning)
-
-  Step 4: Project Info (for templates)
-  ─────────────────────────
-  Project name: my-e2e-suite
-  Base URL: https://staging.example.com
-  Fixture import path: ../fixtures/test-fixture (or "none")
-  Page objects dir: src/pages
-  Test dir pattern: src/tests
-
-  Step 5: Confirm & Generate
-  ─────────────────────────
-  Will create 32 files across 3 platforms.
-  Proceed? (Y/n)
-
-  ✓ Done! Next: customize <!-- YOUR PROJECT: ... --> markers
-```
-
-### Running from Source (Development)
-
-If you cloned the repo and want to test locally:
-
-```bash
-# Run with tsx (no build needed)
-npx tsx bin/init.ts init
-
-# Or build first, then run the compiled version
-npm run build
-node dist/bin/init.js init
-```
-
-### Type Checking
-
-```bash
-npm run lint
-```
-
-### Running Tests
-
-```bash
-npm test
-```
-
-### Building for Distribution
-
-```bash
-npm run build
-```
-
-## What Gets Generated
-
-### Platform Output Formats
-
-Each platform has its own convention for where AI instructions live. The CLI generates files in the right format for each one:
-
-| Platform | Output Path | Format |
-|----------|-------------|--------|
-| Claude Code | `.claude/skills/playwright-e2e/` | SKILL.md index + `references/` directory |
-| Cursor | `.cursor/rules/*.mdc` | Frontmatter with `description` + `globs` per file |
-| GitHub Copilot | `.github/copilot-instructions.md` | Single consolidated markdown file — the generated section is wrapped in `<!-- wico-playwright-agent-skills:start/end -->` markers, so re-running replaces it in place and your hand-written content outside the markers is preserved |
-| Generic | `.agent-skills/` | SKILL.md index + `references/` directory |
-
-### Skill Packs
-
-#### Core Patterns (shipped as-is)
-
-These are generic Playwright best practices that apply to any project:
-
-| Skill | What It Covers |
-|-------|----------------|
-| **playwright-patterns** | `waitForResponse` ordering, `toPass` retry blocks with short inner timeouts, `expect.poll` for API polling, network-first safeguards, Zod validation |
-| **api-testing-patterns** | Testing an HTTP service with no browser: `APIRequestContext`, per-call credentials for negative auth tests, throwing vs raw clients, schema-validated responses, budgets derived from the service's own timings, delta assertions on shared environments, known-defect markers, request budgets |
-| **data-strategy** | When to use static data vs dynamic factories, decision criteria table, factory pattern template with `@faker-js/faker` |
-| **pass-rate-and-flake-analysis** | Proving determinism by running a suite N times: the four outcomes a JSON report distinguishes, per-test stability across runs, a triage order that checks the product before the network, and why `retries` hide races |
-| **test-review** | 7-category review checklist (assertions, selectors, timing, isolation, POM, readability, reliability), quality gates, severity definitions |
-
-#### Playwright CLI Reference (shipped as-is)
-
-Complete reference for the `playwright-cli` browser automation tool:
-
-| Skill | What It Covers |
-|-------|----------------|
-| **SKILL.md** | All CLI commands — open, click, fill, snapshot, tabs, storage, network, devtools |
-| **request-mocking** | Route interception, conditional responses, response modification, network failure simulation |
-| **running-code** | Custom Playwright code execution, geolocation, permissions, media emulation, wait strategies |
-| **session-management** | Named browser sessions, isolation properties, concurrent workflows |
-| **storage-state** | Cookies, localStorage, sessionStorage, IndexedDB, authentication state reuse |
-| **test-generation** | Record interactions as Playwright code, semantic locator generation |
-| **tracing** | Capture and analyze execution traces, trace output file structure |
-| **video-recording** | Record browser sessions as WebM video |
-
-#### Project Templates (customized with your project info)
-
-These templates get `{{PLACEHOLDER}}` values replaced with your project-specific info during generation. They also include `<!-- YOUR PROJECT: ... -->` markers where you should add your own details after setup.
-
-| Skill | What It Covers |
-|-------|----------------|
-| **page-object-conventions** | POM class structure, selector priority, component composition, page factory pattern, iframe handling, method/naming conventions |
-| **project-conventions** | MUST/SHOULD/WON'T constitution-style rules, file organization, test data management, CI/CD conventions, ESLint Playwright plugin rules |
-| **test-debugging** | Common failure patterns table, debugging workflow (error → CLI → trace → CI reports), root cause classification, app bug vs test bug decision tree, bug report template |
-| **test-generation** | Test spec template, critical import rules, page object structure, form filling patterns, fixture documentation, tags reference |
-| **test-planning** | Exploration workflow with playwright-cli, application flow phases, test plan template (objective, environment, flow steps, auth, teardown, tags), planning checklist |
-
-## Template Placeholder System
-
-Templates use a simple `{{PLACEHOLDER}}` syntax with a lightweight regex engine (no Handlebars dependency).
-
-### String Placeholders
-
-| Placeholder | Description | Example Value |
-|-------------|-------------|---------------|
-| `{{PROJECT_NAME}}` | Your project name | `my-e2e-suite` |
-| `{{BASE_URL}}` | Application base URL | `https://staging.example.com` |
-| `{{FIXTURE_IMPORT_PATH}}` | Custom fixture import path | `../fixtures/test-fixture` |
-| `{{PAGE_OBJECTS_DIR}}` | Page objects directory | `src/pages` |
-| `{{TEST_DIR}}` | Test directory pattern | `src/tests` |
-
-### Conditional Blocks
+### Project structure
 
 ```
-{{#if HAS_CUSTOM_FIXTURE}}
-import { test } from '{{FIXTURE_IMPORT_PATH}}'
-{{/if}}
-{{#if NO_CUSTOM_FIXTURE}}
-import { test } from '@playwright/test'
-{{/if}}
+bin/init.ts                 CLI entry point
+src/
+  cli.ts                    Flags (node:util.parseArgs), prompts, non-interactive flow, exit codes
+  detect.ts                 Playwright/config detection without executing project code
+  generator.ts              plan() → PlannedFile[] with new/modified/unchanged status; writePlannedFiles()
+  template-engine.ts        {{PLACEHOLDER}} and {{#if}}/{{else}} rendering
+  frontmatter.ts            Minimal YAML frontmatter parse/serialize
+  migrate.ts                Detection and removal of 1.x output
+  playwright-skills.ts      Install-command bridge to Playwright's own skill installer
+  validate.ts               Output validation used by tests and CI
+  platforms/
+    skills-dir.ts           Standard <root>/playwright-e2e/{SKILL.md,references/} writer
+    claude.ts               .claude/skills/
+    agents.ts               .agents/skills/
+    cursor.ts               .agents/skills/ + .cursor/rules/playwright-e2e.mdc
+    copilot.ts              .agents/skills/ + .github/instructions/ + copilot-instructions.md merge
+skills/
+  core/                     Generic references (always installed)
+  templates/                Project references rendered with your answers
+  indexes/                  skill.md (SKILL.md), cursor-rules.mdc, copilot-instructions.md, copilot-pointer.md
+scripts/validate-output.ts  CLI wrapper around src/validate.ts
+tests/                      node:test suites
 ```
-
-### Extension Points
-
-After generation, search for `<!-- YOUR PROJECT: ... -->` markers in the generated files. These are placeholders where you should add your project-specific details:
-
-```markdown
-<!-- YOUR PROJECT: Add your component inventory here -->
-<!-- YOUR PROJECT: Document your test data files here -->
-<!-- YOUR PROJECT: List your required environment variables here -->
-```
-
-## After Setup
-
-Once the files are generated, here's what to do next:
-
-1. **Review the generated files** for your platform and make sure they look right
-2. **Search for `<!-- YOUR PROJECT: ... -->` markers** and fill in your project-specific details (components, fixtures, env vars, tags, etc.)
-3. **Customize the MUST/SHOULD/WON'T rules** in `project-conventions.md` to match your team's agreements
-4. **Add your failure patterns** to `test-debugging.md` — the common issues your team hits
-5. **Document your page objects and fixtures** in `test-generation.md` so the agent knows what's available
-6. **Test it** — ask your AI assistant to write a test or debug a failure and see if it follows the skills
-
-## Project Structure
-
-```
-qualiow-playwright-skills/
-├── bin/
-│   └── init.ts                       # CLI entry point
-├── src/
-│   ├── cli.ts                        # CLI orchestrator (5-step flow with @clack/prompts)
-│   ├── prompts.ts                    # Project detection (playwright.config.ts, tsconfig.json)
-│   ├── generator.ts                  # Plan/write orchestrator (dry-run plan, then write)
-│   ├── template-engine.ts            # {{PLACEHOLDER}} + {{#if}} replacement engine
-│   ├── version.ts                    # Reads CLI version from package.json
-│   └── platforms/
-│       ├── claude.ts                 # .claude/skills/ generator
-│       ├── cursor.ts                 # .cursor/rules/*.mdc generator
-│       ├── copilot.ts                # .github/copilot-instructions.md generator (marker-based merge)
-│       └── generic.ts                # .agent-skills/ generator
-├── tests/                            # node:test suite (template engine, generator, merge logic)
-├── skills/
-│   ├── core/                         # Shipped as-is (generic Playwright knowledge)
-│   │   ├── playwright-patterns.md
-│   │   ├── data-strategy.md
-│   │   └── test-review.md
-│   ├── templates/                    # Shipped with {{PLACEHOLDERS}} for customization
-│   │   ├── page-object-conventions.md
-│   │   ├── project-conventions.md
-│   │   ├── test-debugging.md
-│   │   ├── test-generation.md
-│   │   └── test-planning.md
-│   ├── playwright-cli/               # Playwright CLI skill (as-is)
-│   │   ├── SKILL.md
-│   │   └── references/
-│   │       ├── request-mocking.md
-│   │       ├── running-code.md
-│   │       ├── session-management.md
-│   │       ├── storage-state.md
-│   │       ├── test-generation.md
-│   │       ├── tracing.md
-│   │       └── video-recording.md
-│   └── indexes/                      # Platform-specific SKILL.md indexes
-│       ├── skill-index.md            # Generic index with decision tree
-│       ├── claude-skill.md           # Claude SKILL.md format
-│       ├── cursor-rules.mdc          # Cursor frontmatter format
-│       └── copilot-instructions.md   # Copilot single-file format
-├── examples/                         # Example generated output per platform
-│   ├── claude/
-│   ├── cursor/
-│   ├── copilot/
-│   └── generic/
-├── package.json
-├── tsconfig.json
-├── tsup.config.ts                    # Build config (single ESM bundle)
-├── .gitignore
-└── LICENSE
-```
-
-## Tech Stack
-
-| Layer | Technology | Version |
-|-------|-----------|---------|
-| Language | TypeScript | 7.0+ |
-| Runtime | Node.js | 20+ |
-| CLI Prompts | @clack/prompts | 1.7+ |
-| Colors | picocolors | 1.1+ |
-| Build | tsup | 8.5+ |
-| Dev Runner | tsx | 4.23+ |
-| Tests | node:test | built-in |
 
 ## Contributing
 
-If you'd like to contribute new skills, improve existing templates, or add support for another platform:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/my-skill`)
-3. Make your changes
-4. Run `npm run lint` and `npm test` to verify types and behavior
-5. Submit a pull request (CI runs lint, tests, build, and a CLI smoke test)
+1. Fork the repository and create a branch (`git checkout -b feat/my-skill`)
+2. Add or edit references under `skills/`; new `.md` files in `core/` and `templates/` are picked up automatically and linked from `skills/indexes/skill.md`
+3. Run `npm run lint && npm test`
+4. Open a pull request (CI runs lint, tests, build, package check, and end-to-end generation)
 
 ## License
 

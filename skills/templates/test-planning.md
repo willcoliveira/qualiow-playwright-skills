@@ -2,57 +2,54 @@
 
 ## Overview
 
-Use this guide when planning new E2E tests. Follow the exploration workflow below to understand the application before writing tests.
+Use this guide when planning new E2E tests. Explore the application before writing a test: real selectors, real flow, real prerequisites.
 
 ---
 
-## Exploring Pages with Playwright CLI
+{{#if HAS_PLAYWRIGHT_CLI}}
+## Exploring Pages with `playwright-cli`
 
-Before writing tests, use `playwright-cli` to explore the application interactively:
+Drive the real application from the terminal (command reference: the official `playwright-cli` skill):
 
 ```bash
-# Open the application
+# Open the application; --headed lets you watch
 playwright-cli open {{BASE_URL}} --headed
 
-# Take a snapshot to see page structure
+# Accessibility snapshot of the page: roles, names and refs (e12) for every element
 playwright-cli snapshot
 
-# Navigate and interact
-playwright-cli click e5
-playwright-cli fill e3 "test input"
+# Search a large page instead of reading the whole snapshot
+playwright-cli find "Add to cart"
+playwright-cli find --regex "Sign (in|up)"
 
-# Inspect specific areas
-playwright-cli snapshot --selector "[data-testid='form']"
+# Narrow to a region, or a ref from the snapshot
+playwright-cli snapshot "#checkout-form"
+playwright-cli snapshot e34
+
+# Interact and watch the flow
+playwright-cli click e5
+playwright-cli fill e3 "user@example.com" --submit
+
+# Get the locator to use in the page object
+playwright-cli generate-locator e5
+
+# Inspect an attribute (e.g. a data-testid)
+playwright-cli eval "el => el.getAttribute('data-testid')" e5
+
+playwright-cli close
 ```
 
-The CLI gives you real-time visibility into page structure, available selectors, and element states.
+`generate-locator` returns the locator Playwright itself would pick; prefer it over hand-written CSS.
 
 {{#if HAS_PLAYWRIGHT_159}}
-### Step Through Existing Tests with --debug=cli (v1.59+)
+### Walk through an existing test
 
-Use CLI debug mode to walk through existing tests and understand the application flow:
-
-```bash
-# Step through a test to see what it does
-npx playwright test {{TEST_DIR}}/checkout.spec.ts --debug=cli
-
-# Filter to a specific test
-npx playwright test --debug=cli -g "should display products"
-```
-
-### Live Inspection with browser.bind() (v1.59+)
-
-For deeper exploration, bind a running browser session for live agent inspection:
-
-```typescript
-const browser = await chromium.launch()
-const sessionUrl = await browser.bind()
-// Agent connects to sessionUrl to inspect live state while test runs
-```
+To learn a flow that already has a test, pause it and step through it: `npx playwright test {{TEST_DIR}}/checkout.spec.ts --debug=cli`, then `playwright-cli attach <session>` and `step-over`. See `agent-debugging.md`.
 {{/if}}
 
 ---
 
+{{/if}}
 ## Application Flow Phases
 
 <!-- YOUR PROJECT: Document your application's main user flow here -->
@@ -79,10 +76,10 @@ When planning a new test, document:
 ### 2. Environment & Configuration
 - Which environment? (staging, dev, etc.)
 - Which viewport? (desktop, mobile)
-- Which configuration variant?
+- Which project in `playwright.config`?
 
 ### 3. Flow Steps
-Map each step to a page object:
+Map each step to a page object method (create the method if it does not exist):
 
 <!-- YOUR PROJECT: Document your page object mapping here -->
 <!-- Example:
@@ -93,16 +90,17 @@ Map each step to a page object:
 -->
 
 ### 4. Authentication
-- Does the test need a logged-in user? → Use auth fixture or setup
-- Does it need a guest user? → Skip login flow
-- Does it need specific user attributes? → Use data factory with overrides
+- Logged-in user? → `storageState` from the auth setup project (`fixtures-and-auth.md`)
+- Guest user? → `test.use({ storageState: { cookies: [], origins: [] } })`
+- Specific role or attributes? → role-specific state file or a data factory with overrides
 
-### 5. Teardown
-- Does the test create data that needs cleanup? → Add `afterEach` hook
-- Does it reserve resources? → Ensure release in teardown
+### 5. Data and Teardown
+- Which data does the test create? → dynamic factory (`data-strategy.md`), unique per test
+- What must be cleaned up? → `afterEach` hook or fixture teardown
+- Does it reserve shared resources? → per-worker accounts
 
 ### 6. Tags
-Apply appropriate tags for CI filtering:
+Apply tags in the options object (`{ tag: ['@smoke'] }`) for CI filtering:
 
 <!-- YOUR PROJECT: Document your tag system here -->
 <!-- Example:
@@ -116,10 +114,10 @@ Apply appropriate tags for CI filtering:
 ## Planning Checklist
 
 - [ ] Identified the application flow phases involved
-- [ ] Selected the appropriate environment and configuration
+- [ ] Selected the environment, viewport and project
 - [ ] Determined authentication needs
-- [ ] Planned teardown strategy
-- [ ] Assigned appropriate tags
-- [ ] Checked source application for selectors and component behavior
+- [ ] Planned test data and teardown
+- [ ] Assigned tags
+- [ ] Checked the source application for selectors and component behaviour
 - [ ] Verified the test doesn't duplicate existing coverage
-- [ ] Explored the page with playwright-cli to validate selectors
+{{#if HAS_PLAYWRIGHT_CLI}}- [ ] Explored the page with `playwright-cli` and validated every selector with `generate-locator`{{/if}}

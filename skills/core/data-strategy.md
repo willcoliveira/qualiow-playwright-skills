@@ -107,7 +107,8 @@ const user = generateUser()
 // Override specific fields for a targeted scenario
 const user = generateUser({ email: 'specific@test.com' })
 
-// Combine with Zod validation (optional)
+// Combine with Zod validation (optional): fail fast when the factory drifts from the API contract
+const UserSchema = z.object({ firstName: z.string(), lastName: z.string(), email: z.string().email(), phone: z.string() })
 const user = UserSchema.parse(generateUser())
 ```
 

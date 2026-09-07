@@ -1,7 +1,7 @@
 {
   "name": "wico-playwright-agent-skills",
-  "version": "1.3.0",
-  "description": "wico — Playwright Agent Skills for AI-assisted E2E testing",
+  "version": "2.0.0",
+  "description": "wico \u2014 Playwright Agent Skills for AI-assisted E2E testing",
   "type": "module",
   "bin": {
     "wico-playwright-agent-skills": "dist/bin/init.js"
@@ -26,9 +26,13 @@
     "testing",
     "agent",
     "ai",
+    "agent-skills",
     "claude",
+    "claude-code",
     "cursor",
     "copilot",
+    "codex",
+    "gemini",
     "skills"
   ],
   "repository": {

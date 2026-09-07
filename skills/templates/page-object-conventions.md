@@ -2,14 +2,13 @@
 
 ## Selector Priority
 
-1. **`page.getByRole()`** — Most resilient, recommended for all interactive elements
-2. **`page.getByLabel()`** — For form fields with labels
-3. **`page.getByText()`** — For visible text content
-4. **`page.getByTestId()`** — For `data-testid` attributes (cross-reference source repo)
-5. **`page.locator('css-selector')`** — For CSS-based selection
-6. **`page.frameLocator('iframe...')`** — For iframe fields (last resort)
+1. **`page.getByRole()`** — most resilient; recommended for all interactive elements
+2. **`page.getByLabel()`** — form fields with labels
+3. **`page.getByText()`** — visible text content
+4. **`page.getByTestId()`** — `data-testid` attributes (cross-reference the source repo)
+5. **`page.locator('css-selector')`** — CSS as a last resort, never layout-dependent
 
-**Never use XPath.**
+**Never use XPath.** Elements inside iframes use the same ladder after `.contentFrame()` (see below).
 
 ---
 
@@ -19,8 +18,7 @@
 import type { Page, Locator } from '@playwright/test'
 {{#if HAS_CUSTOM_FIXTURE}}
 import { test, expect } from '{{FIXTURE_IMPORT_PATH}}'
-{{/if}}
-{{#if NO_CUSTOM_FIXTURE}}
+{{else}}
 import { test, expect } from '@playwright/test'
 {{/if}}
 
@@ -35,10 +33,10 @@ export class ExamplePage {
 
   constructor(page: Page) {
     this.page = page
-    // Define locators in constructor
+    // Define locators in constructor; they are lazy and re-resolve on every use
     this.pageHeading = page.getByRole('heading', { name: 'Example' })
     this.submitButton = page.getByRole('button', { name: 'Submit' })
-    this.errorMessage = page.getByTestId('error-message')
+    this.errorMessage = page.getByRole('alert')
   }
 
   // Methods wrapped in test.step() for trace reporting
@@ -87,6 +85,15 @@ export class CheckoutPage {
 }
 ```
 
+Scope a component to its container when the same widget appears more than once on a page:
+
+```typescript
+constructor(readonly root: Locator) {
+  this.orderTotal = root.getByTestId('order-total')
+}
+// new Basket(page.getByRole('region', { name: 'Your basket' }))
+```
+
 <!-- YOUR PROJECT: Add your component inventory here -->
 <!-- Example:
 | Component | File | Used In |
@@ -97,22 +104,11 @@ export class CheckoutPage {
 
 ---
 
-## Page Factory Pattern
+## Instantiating Page Objects
 
-Use a factory function to lazily instantiate page objects in tests:
+Prefer fixtures (see `fixtures-and-auth.md`); a lazy factory is the lightweight alternative:
 
 ```typescript
-{{#if HAS_PAGE_FACTORY}}
-// Use your project's page factory
-import { createTestPages } from '{{PAGE_FACTORY_IMPORT}}'
-
-const pages = createTestPages({ page })
-pages.homePage      // → HomePage (created on first access)
-pages.loginPage     // → LoginPage
-pages.checkoutPage  // → CheckoutPage
-{{/if}}
-{{#if NO_PAGE_FACTORY}}
-// Simple factory pattern
 function createTestPages(page: Page) {
   return {
     get homePage() { return new HomePage(page) },
@@ -120,7 +116,9 @@ function createTestPages(page: Page) {
     get checkoutPage() { return new CheckoutPage(page) },
   }
 }
-{{/if}}
+
+const pages = createTestPages(page)
+await pages.checkoutPage.submit()
 ```
 
 <!-- YOUR PROJECT: List your available page objects here -->
@@ -129,18 +127,19 @@ function createTestPages(page: Page) {
 
 ## Iframe Handling
 
-If your application uses iframes (e.g. payment widgets, embedded forms), use `frameLocator`:
+For payment widgets or embedded forms, locate the `<iframe>` and enter it with `.contentFrame()`:
 
 ```typescript
-// Accessing elements inside an iframe
 readonly paymentFrame: FrameLocator
 readonly cardNumberField: Locator
 
 constructor(page: Page) {
-  this.paymentFrame = page.frameLocator('iframe[title="Payment form"]')
-  this.cardNumberField = this.paymentFrame.locator('input[data-fieldtype="cardNumber"]')
+  this.paymentFrame = page.locator('iframe[title="Payment form"]').contentFrame()
+  this.cardNumberField = this.paymentFrame.getByLabel('Card number')
 }
 ```
+
+Import `FrameLocator` from `@playwright/test`. Inside the frame, the normal selector ladder applies.
 
 <!-- YOUR PROJECT: Document your iframe structure if applicable -->
 
@@ -150,12 +149,14 @@ constructor(page: Page) {
 
 | Pattern | Example | Usage |
 |---------|---------|-------|
-| `goto(url)` | `homePage.goto('/products')` | Navigate to a page |
+| `goto(path)` | `homePage.goto('/products')` | Navigate to a page (relative to `baseURL`) |
 | `expectXxx()` | `checkoutPage.expectOrderConfirmed()` | Assertions |
 | `selectXxx()` | `productPage.selectSize('Large')` | User selections |
 | `enterXxx()` | `loginPage.enterEmail('user@test.com')` | Form input |
 | `clickXxx()` | `cartPage.clickCheckout()` | Button clicks |
-| `waitForXxx()` | `resultsPage.waitForResults()` | Wait for state |
+| `waitForXxx()` | `resultsPage.waitForResults()` | Wait for state (web-first assertion inside) |
+
+Action methods return `Promise<void>`; the test decides which page object to use next.
 
 ---
 

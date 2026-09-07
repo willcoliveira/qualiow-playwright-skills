@@ -1,46 +1,36 @@
 import { join } from 'node:path'
 import { readFileSync, existsSync } from 'node:fs'
-import { plannedFile, type PlannedFile, type SkillFile } from '../generator.js'
+import { plannedFile, readSkill, type PlannedFile, type SkillFile, type PlanMeta } from '../generator.js'
 import { renderTemplate, type TemplateContext } from '../template-engine.js'
+import { planAgents } from './agents.js'
 
 const MARKER_START = '<!-- wico-playwright-agent-skills:start -->'
 const MARKER_END = '<!-- wico-playwright-agent-skills:end -->'
 
 /**
- * GitHub Copilot platform generator.
+ * GitHub Copilot reads Agent Skills from `.agents/skills/` (cloud agent, code
+ * review, CLI, VS Code and JetBrains). We add two small files so the rules are
+ * also present in Copilot's always-on context:
  *
- * Output structure:
- *   .github/copilot-instructions.md
+ *   .agents/skills/playwright-e2e/...
+ *   .github/instructions/playwright-e2e.instructions.md   (path-specific, `applyTo`)
+ *   .github/copilot-instructions.md                        (short marker block, merged)
  *
- * Copilot uses a single file. We start with the index template and append
- * all selected skill content into one consolidated document. The generated
- * section is wrapped in marker comments so re-running the CLI replaces the
- * previous section instead of duplicating it, and hand-written content
- * outside the markers is preserved.
+ * The marker block replaces the block written by earlier versions, and any
+ * hand-written content outside the markers is preserved.
  */
-export function planCopilot(cwd: string, skillFiles: SkillFile[], skillsDir: string, ctx: TemplateContext): PlannedFile[] {
-  const filePath = join(cwd, '.github', 'copilot-instructions.md')
+export function planCopilot(cwd: string, skillFiles: SkillFile[], skillsDir: string, ctx: TemplateContext, meta: PlanMeta): PlannedFile[] {
+  const instructions = renderTemplate(readSkill(skillsDir, 'indexes/copilot-instructions.md'), ctx)
+  const pointer = renderTemplate(readSkill(skillsDir, 'indexes/copilot-pointer.md'), ctx).trimEnd()
 
-  // Start with the consolidated copilot instructions index
-  let content = renderTemplate(readFileSync(join(skillsDir, 'indexes', 'copilot-instructions.md'), 'utf-8'), ctx)
+  const globalPath = join(cwd, '.github', 'copilot-instructions.md')
+  const existing = existsSync(globalPath) ? readFileSync(globalPath, 'utf-8') : null
 
-  // Append each selected skill file content
-  if (skillFiles.length > 0) {
-    content += '\n\n---\n\n# Detailed Skill References\n'
-
-    for (const skill of skillFiles) {
-      if (skill.type === 'playwright-cli' && skill.name !== 'SKILL.md') {
-        // Skip granular playwright-cli references to keep the file manageable
-        continue
-      }
-      content += `\n\n---\n\n${skill.content}`
-    }
-  }
-
-  const existing = existsSync(filePath) ? readFileSync(filePath, 'utf-8') : null
-  const finalContent = mergeCopilotContent(existing, content)
-
-  return [plannedFile(filePath, finalContent)]
+  return [
+    ...planAgents(cwd, skillFiles, skillsDir, ctx, meta),
+    plannedFile(join(cwd, '.github', 'instructions', 'playwright-e2e.instructions.md'), instructions),
+    plannedFile(globalPath, mergeCopilotContent(existing, pointer), 'merge'),
+  ]
 }
 
 /**
@@ -52,11 +42,11 @@ export function mergeCopilotContent(existing: string | null, generated: string):
   const block = `${MARKER_START}\n\n${generated}\n\n${MARKER_END}`
 
   if (existing === null || existing.trim() === '') {
-    return block
+    return `${block}\n`
   }
 
   const startIdx = existing.indexOf(MARKER_START)
-  const endIdx = existing.indexOf(MARKER_END)
+  const endIdx = existing.indexOf(MARKER_END, startIdx === -1 ? 0 : startIdx)
 
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
     // Replace the previously generated section, keep everything around it

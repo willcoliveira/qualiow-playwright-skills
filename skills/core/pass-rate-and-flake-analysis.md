@@ -1,6 +1,8 @@
 # Pass Rate and Flake Analysis
 
 How to prove a suite is deterministic instead of asserting it, and what to write when it is not.
+For the CI configuration that produces the runs (sharding, reporters, retries, marking known
+failures), see `ci-and-flake-triage.md`.
 
 ## Prove it by running it
 

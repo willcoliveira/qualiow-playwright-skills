@@ -145,7 +145,7 @@ const [seatsResponse, pricingResponse] = await Promise.all([
 
 ### Anti-patterns to avoid
 
-- **No `networkidle`** — it's flaky and deprecated in spirit. Wait for a specific element or response instead.
+- **No `networkidle`** — Playwright's docs discourage it: long-polling, analytics and websockets keep the network busy, so it is slow at best and never settles at worst. Wait for a specific element or response instead.
 - **No arbitrary delays** — `waitForTimeout(2000)` before checking a response is a timing assumption, not a guarantee.
 - **No `waitForLoadState('networkidle')`** — use `waitForURL()` or a web-first assertion on the target page's content.
 
@@ -160,6 +160,7 @@ Use Zod schemas to validate API helper responses at runtime. This catches contra
 ### Pattern
 
 ```typescript
+import type { APIRequestContext } from '@playwright/test'
 import { z } from 'zod'
 
 const OrderResponseSchema = z.object({
@@ -174,7 +175,7 @@ const OrderResponseSchema = z.object({
 
 type OrderResponse = z.infer<typeof OrderResponseSchema>
 
-async function getOrder(orderId: string): Promise<OrderResponse> {
+async function getOrder(request: APIRequestContext, orderId: string): Promise<OrderResponse> {
   const response = await request.get(`/api/orders/${orderId}`)
   const data = await response.json()
   return OrderResponseSchema.parse(data) // throws ZodError if shape is wrong
