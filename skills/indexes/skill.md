@@ -6,6 +6,24 @@ allowed-tools: "Bash(playwright-cli:*), Bash(npx playwright:*), Read, Write, Edi
 
 # Playwright E2E Skills
 
+## Operating Procedure
+
+Work in phases and say which one you are in. Detail is in `references/workflow.md`.
+
+**Classify** the job → **route** to the reference → **explore** the real page, endpoint or failure →
+**plan with a confidence score** → **stop before applying** and wait for approval → apply → verify by
+running it more than once → report, unknowns included.
+
+Four rules that hold everywhere:
+
+- **Explore before generate.** A locator never resolved against a real page is a guess with good syntax.
+- **Below 5, emit no plan.** A low confidence score means you are still exploring, not that you should
+  attach a caveat to a proposal. Ask the question that would raise it.
+- **A skeleton counts as a placeholder.** `TODO`, empty page object methods, a commented-out assertion —
+  all defer the same failure. Placeholders are not deliverables.
+- **No substitute exploration.** If `playwright-cli` is unavailable, stop and say so. Never infer
+  selectors from application source.
+
 ## Decision Tree
 
 ```
@@ -38,7 +56,9 @@ What do you need to do?
 │  ├─ MUST/SHOULD/WON'T → references/conventions.md
 {{#if HAS_TEMPLATES}}│  └─ This project's rules → references/project-conventions.md
 {{/if}}│
-└─ Automate a BROWSER   → official `playwright-cli` skill (see below)
+├─ Automate a BROWSER   → official `playwright-cli` skill (see below)
+│
+└─ UNCLEAR what to do   → references/workflow.md
 ```
 
 ## Skill Reference
@@ -50,6 +70,7 @@ What do you need to do?
 | `references/locators-and-assertions.md` | Strict mode, locator composition, soft assertions, aria snapshots, visual comparison, mocking in tests, clock |
 | `references/fixtures-and-auth.md` | Custom fixtures with `base.extend`, worker scope, auth via setup projects and `storageState` |
 | `references/data-strategy.md` | Choosing between static data and dynamic factories |
+| `references/workflow.md` | The phases, the confidence gate, and what not to invent |
 | `references/conventions.md` | The MUST / SHOULD / WON'T rules every test follows |
 | `references/test-review.md` | 7-category review checklist, quality gates, severity levels |
 | `references/ci-and-flake-triage.md` | Retries, sharding, reporters, `describe.configure`, `test.fail/fixme/slow`, flake triage |

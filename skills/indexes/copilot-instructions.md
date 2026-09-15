@@ -24,6 +24,13 @@ Full guidance for {{PROJECT_NAME}} lives in the `playwright-e2e` skill at `.agen
 - Write custom retry/polling loops (use `toPass()` or `expect.poll()`)
 - Use `page.evaluate()` as a workaround for missing locators
 
+## Working method
+- **Explore before generate** — resolve every selector against a real page, never from source
+- **Below 5, emit no plan** — a low confidence score means keep exploring, not caveat the proposal
+- **A skeleton counts as a placeholder** — `TODO`s and empty methods are not deliverables
+- **No substitute exploration** — if `playwright-cli` is unavailable, stop and say so
+- **Stop before applying** — emit the plan, wait for approval
+
 ## Selector Priority
 1. `getByRole()` > 2. `getByLabel()` > 3. `getByText()` / `getByPlaceholder()` / `getByAltText()` > 4. `getByTestId()` > 5. CSS selector
 

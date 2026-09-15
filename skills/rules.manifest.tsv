@@ -26,3 +26,8 @@ toPass()	conventions.md	cursor,copilot,pointer	no custom polling loops
 getByPlaceholder	locators-and-assertions.md	cursor,copilot	selector ladder
 getByPlaceholder	conventions.md	-	selector ladder (conventions)
 getByPlaceholder	page-object-conventions.md	-	selector ladder (page objects)
+Explore before generate	workflow.md	skill,cursor,copilot,pointer	explore before generate
+Below 5, emit no plan	workflow.md	skill,cursor,copilot,pointer	confidence floor
+counts as a placeholder	workflow.md	skill,cursor,copilot,pointer	no placeholders
+No substitute exploration	workflow.md	skill,cursor,copilot,pointer	no substitute exploration
+Stop before applying	workflow.md	cursor,copilot,pointer	human gate
