@@ -18,7 +18,8 @@ How a coding agent investigates a failing Playwright test from the terminal. Com
 ```bash
 # 1. Start the test in the BACKGROUND and keep reading its output until
 #    "Debugging Instructions" appears (it prints the session name, e.g. tw-87b59e)
-PLAYWRIGHT_HTML_OPEN=never npx playwright test tests/checkout.spec.ts -g "submits an order" --debug=cli
+export PLAYWRIGHT_HTML_OPEN=never
+npx playwright test tests/checkout.spec.ts -g "submits an order" --debug=cli
 
 # 2. Attach to the paused test
 playwright-cli attach tw-87b59e

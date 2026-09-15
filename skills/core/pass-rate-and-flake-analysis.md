@@ -10,13 +10,17 @@ One green run proves nothing about a suite that talks to a real network. Run it 
 consecutively, keep every run's raw output, and report the distribution.
 
 ```bash
-node scripts/run-5x.mjs 5
+mkdir -p runs
+for i in 1 2 3 4 5; do
+  npx playwright test --reporter=json > /dev/null 2>&1 || true
+  cp test-results/results.json "runs/run-$i.json"
+done
 ```
 
-The script runs the suite N times, copies `test-results/results.json` to `runs/run-N.json` after
-each, and writes a summary. **Copy the file rather than relying on an environment variable to
-redirect the reporter** — that precedence has changed between Playwright versions and the failure
-is silent.
+`|| true` keeps the loop going when a run fails — a failing run is data, not a reason to stop.
+**Copy the file rather than relying on an environment variable to redirect the reporter** — that
+precedence has changed between Playwright versions and the failure is silent, which costs you the
+whole run.
 
 ## Four outcomes, not two
 
