@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, resolve, relative, sep } from 'node:path'
 import { parseFrontmatter } from './frontmatter.js'
+import { WORKFLOWS_SUBDIR } from './platforms/skills-dir.js'
 import { findUnrenderedTemplate } from './template-engine.js'
 
 /**
@@ -67,6 +68,12 @@ export function validateOutputTree(root: string): ValidationIssue[] {
     // read as context, never executed, so they carry no grant to check against.
     const grant = grantFor(grants, file)
     if (grant !== null) validateBashFences(text, grant, report)
+
+    const dir = rel.split('/').slice(0, -1).join('/')
+    if (dir === '.claude/commands') validateClaudeCommand(file, text, report)
+    else if (dir === '.claude/agents') validateAgentFile(file, text, report)
+    else if (dir === '.cursor/commands') validateCursorCommand(text, report)
+    else if (dir === '.github/prompts') validateCopilotPrompt(text, report)
 
     const name = basename(file)
     if (name === 'SKILL.md') validateSkillFile(file, text, report)
@@ -181,6 +188,93 @@ export function findRelativeReferences(text: string): string[] {
   for (const match of text.matchAll(/\[[^\]]*\]\(([^)\s]+\.md)(?:#[^)]*)?\)/g)) refs.add(match[1])
   for (const match of text.matchAll(/`([^`\s]+\.md)`/g)) refs.add(match[1])
   return [...refs].filter(ref => !/^[a-z]+:/i.test(ref) && !/[*{}<>]/.test(ref))
+}
+
+const ALLOWED_COMMAND_FRONTMATTER_KEYS = new Set(['description', 'argument-hint', 'allowed-tools', 'model', 'disable-model-invocation'])
+const ALLOWED_AGENT_FRONTMATTER_KEYS = new Set(['name', 'description', 'tools', 'model'])
+const AGENT_MODELS = new Set(['haiku', 'sonnet', 'opus', 'inherit'])
+
+/**
+ * Verbs that turn a mapping into an opinion. An agent that grades, ranks or
+ * recommends is no longer a pure function from files to an artifact, and the
+ * moment it is not, running the same work inline stops producing the same
+ * result — which is what lets three platforms without sub-agents lose nothing.
+ */
+const JUDGEMENT_VERBS = ['assess', 'decide', 'grade', 'severity', 'verdict', 'recommend', 'should']
+
+/** The `## Forbidden` section is where an agent names the verbs it must not use. */
+export function stripForbiddenSection(body: string): string {
+  return body
+    .split(/^(?=##[ \t])/m)
+    .filter(section => !/^##[ \t]+Forbidden\b/.test(section))
+    .join('')
+}
+
+/** A line that forbids a verb is the opposite of a line that uses it. */
+function isNegated(line: string): boolean {
+  return /\b(?:not|never|no)\b/i.test(line)
+}
+
+function validateClaudeCommand(file: string, text: string, report: (message: string) => void): void {
+  const { data, hasFrontmatter } = parseFrontmatter(text)
+  if (!hasFrontmatter) {
+    report('command file has no frontmatter')
+    return
+  }
+  if (typeof data.description !== 'string' || data.description.trim() === '') report('command frontmatter is missing `description`')
+  for (const key of Object.keys(data)) {
+    if (!ALLOWED_COMMAND_FRONTMATTER_KEYS.has(key)) report(`command frontmatter key \`${key}\` is not supported`)
+  }
+  if (!text.includes(`/${WORKFLOWS_SUBDIR}/`)) report('command file does not point at a workflow body')
+}
+
+function validateCursorCommand(text: string, report: (message: string) => void): void {
+  const { data, hasFrontmatter } = parseFrontmatter(text)
+  if (!hasFrontmatter || typeof data.description !== 'string' || data.description.trim() === '') {
+    report('Cursor command needs a `description` frontmatter key')
+  }
+}
+
+function validateCopilotPrompt(text: string, report: (message: string) => void): void {
+  const { data, hasFrontmatter } = parseFrontmatter(text)
+  if (!hasFrontmatter) {
+    report('prompt file has no frontmatter')
+    return
+  }
+  if (data.mode !== 'agent') report('prompt file needs `mode: agent` to be runnable')
+  if (typeof data.description !== 'string' || data.description.trim() === '') report('prompt frontmatter is missing `description`')
+}
+
+function validateAgentFile(file: string, text: string, report: (message: string) => void): void {
+  const { data, body, hasFrontmatter } = parseFrontmatter(text)
+  if (!hasFrontmatter) {
+    report('agent file has no frontmatter')
+    return
+  }
+  const expected = basename(file).replace(/\.md$/, '')
+  if (data.name !== expected) report(`agent \`name\` must equal the filename "${expected}"`)
+  for (const key of Object.keys(data)) {
+    if (!ALLOWED_AGENT_FRONTMATTER_KEYS.has(key)) report(`agent frontmatter key \`${key}\` is not supported`)
+  }
+  if (typeof data.model !== 'string' || !AGENT_MODELS.has(data.model)) {
+    report(`agent \`model\` must be one of ${[...AGENT_MODELS].join(', ')}`)
+  }
+  if (typeof data.description !== 'string' || data.description.trim() === '') report('agent frontmatter is missing `description`')
+
+  if (!/^##[ \t]+Forbidden\b/m.test(body)) {
+    report('agent body has no `## Forbidden` section naming what it must not return')
+  }
+
+  // Outside that section, and ignoring lines that forbid rather than instruct,
+  // a judgement verb means the agent has been given an opinion to form.
+  for (const line of stripForbiddenSection(body).split(/\r?\n/)) {
+    if (isNegated(line)) continue
+    for (const verb of JUDGEMENT_VERBS) {
+      if (new RegExp(`\\b${verb}\\b`, 'i').test(line)) {
+        report(`agent body uses the judgement verb \`${verb}\`; an agent returns an artifact, never an opinion`)
+      }
+    }
+  }
 }
 
 /**

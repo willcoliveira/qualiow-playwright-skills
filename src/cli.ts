@@ -62,6 +62,7 @@ const PLATFORM_OPTIONS: Array<{ value: Platform; label: string; hint: string }> 
 
 const OPTIONAL_PACK_OPTIONS: Array<{ value: Pack; label: string; hint: string }> = [
   { value: 'templates', label: 'Project templates', hint: 'conventions, page objects, debugging, generation, planning (customised with your project info)' },
+  { value: 'workflows', label: 'Workflows and commands', hint: 'plan, test, debug, review, determinism — as slash commands on Claude Code, Cursor and Copilot' },
   { value: 'playwright-cli', label: 'Official Playwright agent skills', hint: 'playwright-cli + playwright-trace via Playwright\'s own installer' },
 ]
 

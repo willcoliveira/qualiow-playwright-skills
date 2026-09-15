@@ -34,7 +34,7 @@ test('the manifest has rules and every one of them names a real owner', () => {
 test('no rule has drifted, in any platform × pack × version combination', () => {
   const manifest = loadRuleManifest(SKILLS_DIR)
   for (const platforms of [['claude'], ['cursor'], ['copilot'], ['agents'], ['claude', 'cursor', 'copilot', 'agents']]) {
-    for (const packs of [['core'], ['core', 'templates']]) {
+    for (const packs of [['core'], ['core', 'templates'], ['core', 'templates', 'workflows']]) {
       for (const meetsMinPlaywrightVersion of [true, false]) {
         const cwd = generate(platforms, packs, meetsMinPlaywrightVersion)
         const label = `${platforms.join('+')} / ${packs.join('+')} / pw159=${meetsMinPlaywrightVersion}`

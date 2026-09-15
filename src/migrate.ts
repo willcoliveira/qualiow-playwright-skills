@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, rmdirSync } from 'node:f
 import { dirname, join, resolve } from 'node:path'
 import { parseFrontmatter } from './frontmatter.js'
 import { PACKAGE_NAME, type PlannedFile } from './generator.js'
-import { SKILL_NAME } from './platforms/skills-dir.js'
+import { SKILL_NAME, WORKFLOWS_SUBDIR } from './platforms/skills-dir.js'
 
 export interface LegacyItem {
   /** Absolute path. */
@@ -28,6 +28,14 @@ export const LEGACY_CURSOR_RULE_DESCRIPTIONS: Record<string, string> = {
 }
 
 const SKILL_ROOTS = [['.claude', 'skills'], ['.agents', 'skills']] as const
+
+/** Where each platform's command form lives, and what its files are named. */
+const COMMAND_DIRS = [
+  [['.claude', 'commands'], '.md'],
+  [['.cursor', 'commands'], '.md'],
+  [['.github', 'prompts'], '.prompt.md'],
+  [['.claude', 'agents'], '.md'],
+] as const
 
 /**
  * Finds output left behind by 1.x (or by an earlier 2.x run with different
@@ -72,6 +80,37 @@ export function detectLegacyOutputs(cwd: string, planned: readonly PlannedFile[]
       const full = join(entry.parentPath, entry.name)
       if (plannedPaths.has(resolve(full))) continue
       items.push({ path: full, kind: 'file', reason: 'not produced by the current packs (keep it if you added it by hand)' })
+    }
+  }
+
+  // Workflow bodies the current packs no longer produce, alongside the references.
+  for (const root of SKILL_ROOTS) {
+    const skillDir = join(cwd, ...root, SKILL_NAME)
+    const index = join(skillDir, 'SKILL.md')
+    if (!plannedPaths.has(resolve(index))) continue
+    if (!existsSync(index) || !isOurs(readText(index))) continue
+    const workflowsDir = join(skillDir, WORKFLOWS_SUBDIR)
+    if (!existsSync(workflowsDir)) continue
+    for (const entry of readdirSync(workflowsDir, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith('.md')) continue
+      const full = join(entry.parentPath, entry.name)
+      if (plannedPaths.has(resolve(full))) continue
+      items.push({ path: full, kind: 'file', reason: 'workflow not produced by the current packs' })
+    }
+  }
+
+  // Command, prompt and agent files we wrote whose workflow is gone or renamed.
+  // Each carries an ownership marker, so a hand-written command of the user's
+  // own — or one from another tool — is never touched.
+  for (const [dir, suffix] of COMMAND_DIRS) {
+    const full = join(cwd, ...dir)
+    if (!existsSync(full)) continue
+    for (const entry of readdirSync(full, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(suffix)) continue
+      const file = join(entry.parentPath, entry.name)
+      if (plannedPaths.has(resolve(file))) continue
+      if (!readText(file).includes(`<!-- ${PACKAGE_NAME}:`)) continue
+      items.push({ path: file, kind: 'file', reason: 'generated for a workflow the current packs no longer produce' })
     }
   }
 

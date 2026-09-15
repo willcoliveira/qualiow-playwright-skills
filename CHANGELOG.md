@@ -1,5 +1,44 @@
 # Changelog
 
+## 2.2.0 — 2026-09-15
+
+Five procedures, as commands on every platform that has them.
+
+### Added
+
+- **A `workflows` pack.** `/playwright-plan`, `/playwright-test`, `/playwright-debug`,
+  `/playwright-review` and `/playwright-determinism` — the operating procedure applied to the five
+  jobs it classifies.
+- **One body per procedure, one copy in the repository.** Bodies render to
+  `<skill>/workflows/<id>.md`, byte-identical in `.claude/skills/` and `.agents/skills/`, and each
+  platform's command file is a five-line wrapper pointing at it: `.claude/commands/`,
+  `.cursor/commands/`, `.github/prompts/*.prompt.md` (`mode: agent`). A procedure cannot differ
+  between targets because only one copy of it exists.
+- **A `## Procedures` table in `SKILL.md`** so the shared `.agents` tree — which has no command
+  construct — reaches every procedure by name. Same content, worse ergonomics, stated plainly.
+- **Four sub-agents on Claude Code**: `pw-suite-indexer`, `pw-page-mapper`, `pw-failure-indexer`,
+  `pw-review-scanner`, all Haiku. Each maps files to one artifact and makes no judgement, so running
+  the same work inline gives the same artifact — they are an optimisation, never a capability the
+  skill depends on.
+- **`references/delegation-rules.md`** — delegate the I/O, keep the reasoning, with the
+  never-delegate list and why a delegate's verdict is discarded rather than weighed.
+- **Validators for commands, prompts and agents**, dispatched by directory because `.prompt.md`
+  also ends in `.md`. An agent body must declare a `## Forbidden` section and must not contain a
+  judgement verb outside it.
+- **`tests/parity.test.ts`** — identical bodies in both trees across every combination, every
+  wrapper resolving to a body that exists, every procedure reachable on a platform with no commands,
+  and nothing advertised when the pack is not installed.
+- The in-process matrix grows from 80 combinations to 120; CI gains a workflows scaffold that checks
+  both invariants from the packed tarball.
+
+### Fixed
+
+- `migrate` swept `references/` only, so deselecting a pack or renaming a procedure left a command
+  file pointing at a body that no longer exists — a command that appears in the palette and does
+  nothing. Command, prompt, agent and workflow files are now swept too, identified by their
+  ownership marker so a hand-written command is never touched.
+
+
 ## 2.1.0 — 2026-09-15
 
 Gives the generated skill a procedure to follow, and adds the checks that keep the four platform

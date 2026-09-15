@@ -45,7 +45,7 @@ npx wico-playwright-agent-skills init --platforms copilot --dry-run
 | Flag | Description |
 |------|-------------|
 | `--platforms <list>` | Comma-separated: `claude`, `cursor`, `copilot`, `agents` (`generic` is accepted as an alias of `agents`) |
-| `--packs <list>` | Comma-separated: `core`, `templates`, `playwright-cli`. `core` is always included |
+| `--packs <list>` | Comma-separated: `core`, `templates`, `workflows`, `playwright-cli`. `core` is always included |
 | `--project-name <name>` | Used in the skill description and templates (default: `name` from `package.json`) |
 | `--base-url <url>` | Application base URL for the templates |
 | `--fixture-import-path <path>` | Custom fixture import path, or `none` for plain `@playwright/test` |
@@ -64,7 +64,7 @@ Exit codes: `0` success or dry run, `1` usage error, refused overwrite or failed
 
 | Platform | Files |
 |----------|-------|
-| `claude` | `.claude/skills/playwright-e2e/SKILL.md` + `references/*.md` |
+| `claude` | `.claude/skills/playwright-e2e/SKILL.md` + `references/*.md` (+ `workflows/*.md`, `.claude/commands/`, `.claude/agents/` with the `workflows` pack) |
 | `cursor` | `.agents/skills/playwright-e2e/` + `.cursor/rules/playwright-e2e.mdc` (auto-attached pointer rule with the key rules) |
 | `copilot` | `.agents/skills/playwright-e2e/` + `.github/instructions/playwright-e2e.instructions.md` (path-specific rules) + a short marker block in `.github/copilot-instructions.md` |
 | `agents` | `.agents/skills/playwright-e2e/` only (read by Cursor, Copilot, Codex, Gemini CLI) |
@@ -101,6 +101,34 @@ The Copilot marker block is merged: anything you wrote outside `<!-- wico-playwr
 | `test-planning.md` | Exploration with `playwright-cli`, flow phases, plan template, checklist |
 | `test-debugging.md` | Failure patterns, debugging workflow, root cause classification, app bug vs test bug decision tree, bug report template |
 
+**workflows** adds five procedures as commands, and four sub-agents on Claude Code.
+
+| Procedure | What it does |
+|-----------|--------------|
+| `/playwright-plan` | Explore the feature, emit a plan with a confidence score, and stop |
+| `/playwright-test` | Apply an accepted plan, then verify by running it repeatedly |
+| `/playwright-debug` | Reproduce, classify from evidence, fix — or report the application bug and leave the test failing |
+| `/playwright-review` | Mechanical pass, then judgement, in that order |
+| `/playwright-determinism` | Run N times and report the distribution |
+
+Each procedure's body is written **once**, at
+`<skill>/workflows/<id>.md`, and every platform's command file is a five-line wrapper pointing at
+it. So the procedure cannot differ between targets — there is only one copy of it.
+
+| Platform | How you invoke it |
+|----------|-------------------|
+| Claude Code | `.claude/commands/<id>.md` — a slash command |
+| Cursor | `.cursor/commands/<id>.md` — a slash command |
+| GitHub Copilot | `.github/prompts/<id>.prompt.md` — a prompt file (`mode: agent`) |
+| `agents` | No command construct exists. The `## Procedures` table in `SKILL.md` lists each one by name and path; ask for it by name |
+
+Claude Code additionally gets four sub-agents in `.claude/agents/` — `pw-suite-indexer`,
+`pw-page-mapper`, `pw-failure-indexer` and `pw-review-scanner`, all on Haiku. They are an
+optimisation, not a capability: each maps files to one named artifact and makes no judgement, so
+running the same work inline produces the same artifact and the other three platforms lose only the
+context saving. `references/delegation-rules.md` states the line and the never-delegate list, and
+the build enforces it — an agent body containing a judgement verb fails validation.
+
 **playwright-cli** writes no files. Playwright ships and installs its own `playwright-cli` and `playwright-trace` skills, so this pack detects your Playwright version and prints (or runs, with `--install-playwright-skills`) the official commands:
 
 ```bash
@@ -136,6 +164,7 @@ Templates use `{{PLACEHOLDER}}` substitution and `{{#if}}...{{else}}...{{/if}}` 
 | `HAS_PLAYWRIGHT_159` | Playwright >= 1.59 was detected |
 | `HAS_TEMPLATES` | The `templates` pack is selected |
 | `HAS_PLAYWRIGHT_CLI` | The `playwright-cli` pack is selected |
+| `HAS_WORKFLOWS` | The `workflows` pack is selected |
 
 ## After setup
 
@@ -191,16 +220,20 @@ src/
   playwright-skills.ts      Install-command bridge to Playwright's own skill installer
   validate.ts               Output validation used by tests and CI
   rules.ts                  Rule-drift manifest loader and checker
+  workflows.ts              Neutral workflow and agent source loader
   platforms/
     skills-dir.ts           Standard <root>/playwright-e2e/{SKILL.md,references/} writer
     claude.ts               .claude/skills/
     agents.ts               .agents/skills/
     cursor.ts               .agents/skills/ + .cursor/rules/playwright-e2e.mdc
     copilot.ts              .agents/skills/ + .github/instructions/ + copilot-instructions.md merge
+    wrappers.ts             The five-line command wrapper shared by all three command forms
 skills/
   core/                     Generic references (always installed)
   templates/                Project references rendered with your answers
   indexes/                  skill.md (SKILL.md), cursor-rules.mdc, copilot-instructions.md, copilot-pointer.md
+  workflows/                Procedure bodies, rendered into every skill tree unchanged
+  agents/                   Sub-agent definitions (Claude Code only)
   rules.manifest.tsv        Rules stated in more than one place, and their anchors
 scripts/validate-output.ts  CLI wrapper around src/validate.ts
 scripts/check-rule-drift.ts CLI wrapper around src/rules.ts
