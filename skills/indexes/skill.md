@@ -72,6 +72,7 @@ What do you need to do?
 | `references/data-strategy.md` | Choosing between static data and dynamic factories |
 | `references/workflow.md` | The phases, the confidence gate, and what not to invent |
 | `references/conventions.md` | The MUST / SHOULD / WON'T rules every test follows |
+| `references/delegation-rules.md` | What can be handed off, and what must not be |
 | `references/test-review.md` | 7-category review checklist, quality gates, severity levels |
 | `references/ci-and-flake-triage.md` | Retries, sharding, reporters, `describe.configure`, `test.fail/fixme/slow`, flake triage |
 | `references/pass-rate-and-flake-analysis.md` | Proving determinism by running the suite N times: the four outcomes, per-test stability, what to report |
@@ -83,7 +84,23 @@ What do you need to do?
 | `references/test-planning.md` | Exploration workflow, test plan template, planning checklist |
 {{/if}}
 
-## Browser automation and agent debugging
+{{#if HAS_WORKFLOWS}}## Procedures
+
+Five procedures ship with this skill. On Claude Code, Cursor and GitHub Copilot each is also a
+command you can invoke directly. Anywhere else — Codex, Gemini CLI, any agent reading
+`.agents/skills/` — ask for one by name and read its file; the content is identical.
+
+| Procedure | Command | What it does |
+|-----------|---------|--------------|
+| Plan a new test | `/playwright-plan` | Explore, then emit a plan with a confidence score and stop |
+| Write a test | `/playwright-test` | Apply an accepted plan, then verify by running it repeatedly |
+| Debug a failure | `/playwright-debug` | Reproduce, classify from evidence, fix or report |
+| Review test code | `/playwright-review` | Mechanical pass, then judgement, in that order |
+| Prove determinism | `/playwright-determinism` | Run N times and report the distribution |
+
+Bodies are in `workflows/`. Delegation limits are in `references/delegation-rules.md`.
+
+{{/if}}## Browser automation and agent debugging
 
 Playwright ships its own agent skills; this skill does not duplicate them.
 
