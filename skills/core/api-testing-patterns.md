@@ -177,6 +177,17 @@ Two details that matter: rethrow anything that is not an assertion error, or a `
 gets swallowed as "expected"; and make the report generator fail when a finding names a test that no
 longer exists, or the two drift apart within a month.
 
+## Credentials per origin, and where the response came from
+
+When a flow crosses origins — an app host and a separate auth or payments host — one
+`httpCredentials` object applies the same credentials everywhere. Pass an array to give each origin
+its own, rather than dropping down to per-request headers for the whole suite.
+
+`apiResponse.securityDetails()` and `apiResponse.serverAddr()` answer "which server actually served
+this" when an environment is misconfigured. Reach for them while diagnosing, not in assertions: a
+test that asserts on a server address fails on the day someone adds a load balancer, and that is not
+the regression you were trying to catch.
+
 ## Budgets from the response's own timings
 
 **Playwright 1.63 and later.** `apiResponse.timing()` returns resource timing for the response, so
