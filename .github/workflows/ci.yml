@@ -65,7 +65,7 @@ jobs:
           npm pack --dry-run --json > pack.json
           node -e '
             const files = require("./pack.json")[0].files.map(f => f.path)
-            const required = ["dist/bin/init.js", "skills/indexes/skill.md", "skills/core/agent-debugging.md", "skills/templates/test-generation.md", "skills/core/conventions.md", "skills/core/workflow.md", "skills/rules.manifest.tsv"]
+            const required = ["dist/bin/init.js", "skills/indexes/skill.md", "skills/core/agent-debugging.md", "skills/templates/test-generation.md", "skills/core/conventions.md", "skills/core/workflow.md", "skills/rules.manifest.tsv", "skills/core/delegation-rules.md", "skills/workflows/playwright-plan.md", "skills/agents/pw-page-mapper.md"]
             const missing = required.filter(f => !files.includes(f))
             const vendored = files.filter(f => f.startsWith("skills/playwright-cli/"))
             if (missing.length) { console.error("missing from package:", missing); process.exit(1) }
@@ -110,6 +110,30 @@ jobs:
         run: |
           npx tsx scripts/validate-output.ts "$RUNNER_TEMP/proj-min"
           npx tsx scripts/check-rule-drift.ts "$RUNNER_TEMP/proj-min"
+
+      # The parity claim is that all four targets get the same procedure. The
+      # in-process suite asserts it; this asserts it for the packed tarball, and
+      # asserts every wrapper points at a body that was actually written.
+      - name: Generate the workflows variant
+        run: |
+          mkdir -p "$RUNNER_TEMP/proj-wf" && cd "$RUNNER_TEMP/proj-wf"
+          npm init -y > /dev/null
+          node "$GITHUB_WORKSPACE/dist/bin/init.js" init \
+            --platforms claude,cursor,copilot,agents \
+            --packs core,templates,workflows \
+            --project-name workflows-e2e --yes
+          diff -r .claude/skills/playwright-e2e/workflows .agents/skills/playwright-e2e/workflows
+          for f in .claude/commands/*.md .cursor/commands/*.md .github/prompts/*.prompt.md; do
+            body=$(grep -o '`[^`]*/workflows/[^`]*\.md`' "$f" | head -1 | tr -d '`')
+            test -n "$body" || { echo "$f names no workflow body"; exit 1; }
+            test -f "$body" || { echo "$f points at $body, which was not generated"; exit 1; }
+          done
+          test -f .claude/agents/pw-page-mapper.md
+
+      - name: Validate the workflows variant
+        run: |
+          npx tsx scripts/validate-output.ts "$RUNNER_TEMP/proj-wf"
+          npx tsx scripts/check-rule-drift.ts "$RUNNER_TEMP/proj-wf"
 
       - name: Re-run is idempotent
         run: |

@@ -7,7 +7,7 @@ import { plan, writePlannedFiles } from '../src/generator.js'
 import { validateOutputTree, findRelativeReferences, findOwnedAssetReferences, extractBashBlocks, allowedToolPrefixes, checkBashLine, stripForbiddenSection } from '../src/validate.js'
 
 const PLATFORM_SETS = [['claude'], ['cursor'], ['copilot'], ['agents'], ['claude', 'cursor', 'copilot', 'agents']]
-const PACK_SETS = [['core'], ['core', 'templates'], ['core', 'playwright-cli'], ['core', 'templates', 'playwright-cli']]
+const PACK_SETS = [['core'], ['core', 'templates'], ['core', 'playwright-cli'], ['core', 'templates', 'playwright-cli'], ['core', 'workflows'], ['core', 'templates', 'workflows', 'playwright-cli']]
 const FIXTURE_PATHS = ['', '../fixtures/test-fixture']
 
 test('every platform × pack × version × fixture combination validates and is idempotent', () => {
