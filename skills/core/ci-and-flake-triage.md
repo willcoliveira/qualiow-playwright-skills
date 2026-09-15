@@ -34,6 +34,28 @@ export default defineConfig({
 
 Artifacts to upload from CI: `test-results/` (traces, screenshots, videos of failures) and `playwright-report/` or `blob-report/`.
 
+### Choosing a trace and video mode
+
+Both options take the same seven values. The distinction that matters is **record** versus **keep**:
+a `retain-` mode records every run and throws away what it does not need, so it costs runtime on
+every test but never misses a first failure. An `on-` mode only starts recording once a retry
+begins, which is cheaper and cannot show you the run that actually failed.
+
+| Mode | Records | Keeps |
+| --- | --- | --- |
+| `off` | nothing | — |
+| `on` | every run | every run |
+| `on-first-retry` | the first retry only | the first retry |
+| `on-all-retries` | every retry | every retry |
+| `retain-on-failure` | every run | runs that failed |
+| `retain-on-first-failure` | the first run, not retries | that run, if it failed |
+| `retain-on-failure-and-retries` | every run | anything that failed or is a retry |
+
+`on-first-retry` is the usual CI default and the reason a flake is so often undiagnosable: the run
+that failed was never recorded, and the retry that was recorded passed. `retain-on-failure-and-retries`
+is the mode to reach for when you are actually chasing one — you get the failing run *and* the retry,
+so you can compare them. Switch back when the flake is fixed; recording every run is not free.
+
 ---
 
 ## Parallelism and ordering
@@ -108,7 +130,17 @@ jobs:
 
 Without the container image, run `npx playwright install --with-deps` after `npm ci`.
 
-Useful selection flags: `--project chromium`, `--grep @smoke`, `--grep-invert @slow`, `--last-failed`, `--only-changed` (tests affected by uncommitted or branch changes), `--repeat-each 10`.
+Useful selection flags: `--project chromium`, `--grep @smoke`, `--grep-invert @slow` (`-G` is the
+shorthand), `--last-failed`, `--only-changed` (tests affected by uncommitted or branch changes),
+`--repeat-each 10`.
+
+Two more worth knowing:
+
+- `--fail-on-flaky-tests` — the command-line form of the config option, for a one-off run where you
+  want a retry to fail the build without editing `playwright.config.ts`.
+- `--add-reporter` — adds a reporter *on top of* the configured ones instead of replacing them.
+  `--reporter=json` silently drops your HTML report; `--add-reporter=json` keeps it. This is the flag
+  to use when a CI step needs machine-readable output and a human still wants the report.
 
 ---
 

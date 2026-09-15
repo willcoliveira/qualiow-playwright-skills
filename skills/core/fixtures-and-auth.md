@@ -147,6 +147,24 @@ setup('authenticate', async ({ page }) => {
 
 Add `playwright/.auth/` to `.gitignore`: the file contains session cookies.
 
+### What the file actually holds
+
+By default: cookies, plus a `localStorage` snapshot per origin. That is enough for most session
+tokens and not enough for several things teams routinely hit, each of which is an opt-in:
+
+```typescript
+await page.context().storageState({
+  path: authFile,
+  indexedDB: true,      // apps that keep the session or an offline cache in IndexedDB
+  credentials: true,    // virtual WebAuthn credentials, for passkey logins
+  opfs: true,           // origin private file system
+})
+```
+
+If auth "works locally but the saved state logs out immediately", this is the first thing to check:
+a token in IndexedDB is simply not in the file unless you asked for it, and the failure looks like a
+session-expiry bug rather than a missing option.
+
 ### Faster: authenticate through the API
 
 ```typescript

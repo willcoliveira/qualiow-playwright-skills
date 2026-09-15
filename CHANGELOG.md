@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.4.0 — 2026-09-15
+
+The rest of the Playwright 1.60–1.63 catch-up that 2.3.0 started. Content only; no CLI, layout or
+detection change.
+
+Every API here was checked against the Playwright documentation before being written. Four items
+from the release notes did **not** survive that check and are deliberately absent:
+`page.localStorage` / `page.sessionStorage` and an "isolated retry strategy" are not in the API
+reference at all, and `omitTags` was not found on `TestConfig`.
+
+### Added
+
+- **The seven trace and video modes, with the distinction that matters:** record versus keep. The
+  `on-first-retry` default most projects run is the direct cause of an undiagnosable flake — the run
+  that failed was never recorded and the retry that was recorded passed. `retain-on-failure-and-retries`
+  keeps both so they can be compared.
+- **`--add-reporter`** — adds a reporter on top of the configured ones. `--reporter=json` silently
+  replaces them, so a CI step wanting machine-readable output throws away the HTML report. Plus `-G`
+  as the shorthand for `--grep-invert`, and `--fail-on-flaky-tests` for a one-off run.
+- **`expect(page).toMatchAriaSnapshot()`** for whole-page structure, with when it is and is not the
+  right call, and **`page.ariaSnapshotJSON()`** for checks a YAML template cannot express — counting,
+  ordering, or finding every control without an accessible name.
+- **`reducedMotion`, `forcedColors` and `contrast`** as test options, next to visual comparison:
+  `reducedMotion: 'reduce'` is the non-obvious fix for a screenshot that flickers on a transition.
+- **What `storageState` actually holds** — cookies and a `localStorage` snapshot by default, with
+  `indexedDB`, `credentials` (WebAuthn) and `opfs` as opt-ins. Documented by its symptom: auth works
+  interactively, the saved state logs straight out, and it reads as session expiry rather than a
+  missing option.
+- **`httpCredentials` as an array** for flows crossing origins, and `apiResponse.securityDetails()` /
+  `serverAddr()` as diagnostic tools — with the warning that a test asserting on a server address
+  fails the day someone adds a load balancer.
+
+
 ## 2.3.0 — 2026-09-15
 
 Catches the content up with Playwright 1.60–1.63. No CLI or layout change; the detection thresholds
