@@ -20,6 +20,25 @@ const MAX_SKILL_NAME_LENGTH = 64
 const MAX_DESCRIPTION_LENGTH = 1024
 const MAX_SKILL_BODY_LINES = 500
 
+/** The only keys the Agent Skills spec gives a SKILL.md. */
+const ALLOWED_SKILL_FRONTMATTER_KEYS = new Set([
+  'name',
+  'description',
+  'allowed-tools',
+  'license',
+  'compatibility',
+  'metadata',
+])
+
+/**
+ * `key: >` / `key: |` block scalars. `parseFrontmatter` is deliberately not a
+ * YAML parser: it stores the `>` itself as the value and drops the indented
+ * continuation lines, so a folded description silently becomes ">".
+ */
+const BLOCK_SCALAR_RE = /^([\w.-]+):[ \t]*[|>][-+0-9]*[ \t]*$/
+
+const FRONTMATTER_BLOCK_RE = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/
+
 /** Directories under the root that are never ours to validate (e.g. node_modules). */
 const SKIPPED_DIRS = new Set(['node_modules', '.git'])
 
@@ -54,6 +73,20 @@ function validateSkillFile(file: string, text: string, report: (message: string)
   if (!hasFrontmatter) {
     report('SKILL.md has no YAML frontmatter')
     return
+  }
+
+  const block = FRONTMATTER_BLOCK_RE.exec(text)
+  if (block) {
+    for (const line of block[1].split(/\r?\n/)) {
+      const scalar = BLOCK_SCALAR_RE.exec(line)
+      if (scalar) report(`frontmatter \`${scalar[1]}\` uses a YAML block scalar; put the value on one line`)
+    }
+  }
+
+  for (const key of Object.keys(data)) {
+    if (!ALLOWED_SKILL_FRONTMATTER_KEYS.has(key)) {
+      report(`frontmatter key \`${key}\` is not part of the Agent Skills spec`)
+    }
   }
   const name = data.name
   if (typeof name !== 'string' || name === '') {

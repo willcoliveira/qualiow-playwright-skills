@@ -56,6 +56,8 @@ test('the validator catches the mistakes it exists for', () => {
   try {
     write('.claude/skills/wrong-name/SKILL.md', '---\nname: Playwright_E2E\ndescription: x\n---\n\n# x\n\nSee `references/missing.md` and [link](../nope.md).\n\n{{#if HAS_X}}\n')
     write('.claude/skills/no-frontmatter/SKILL.md', '# no frontmatter\n\nplaywright-cli snapshot --selector "#x"\nconst s = await browser.bind()\n')
+    write('.claude/skills/stray-keys/SKILL.md', '---\nname: stray-keys\ndescription: d\nversion: 3\ntools: Bash\n---\n\n# x\n')
+    write('.claude/skills/folded/SKILL.md', '---\nname: folded\ndescription: >\n  Wraps onto a second line: and a colon here corrupts it.\n---\n\n# x\n')
     write('.cursor/rules/bad.mdc', '---\ndescription: d\nglobs: "**/*.ts"\n---\n# rule\n')
     write('.github/instructions/bad.instructions.md', '# no applyTo\n')
 
@@ -72,6 +74,9 @@ test('the validator catches the mistakes it exists for', () => {
     expect('missing `alwaysApply`')
     expect('must not be quoted')
     expect('applyTo')
+    expect('frontmatter key `version` is not part of the Agent Skills spec')
+    expect('frontmatter key `tools` is not part of the Agent Skills spec')
+    expect('frontmatter `description` uses a YAML block scalar')
   } finally {
     rmSync(cwd, { recursive: true, force: true })
   }
