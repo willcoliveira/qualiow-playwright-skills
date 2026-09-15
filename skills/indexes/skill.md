@@ -1,6 +1,7 @@
 ---
 name: playwright-e2e
 description: "Playwright end-to-end testing skills for {{PROJECT_NAME}}: plan, generate, review and debug tests with page objects, web-first assertions, fixtures and a test data strategy. Use when writing, fixing or reviewing Playwright tests, page objects, fixtures or playwright.config."
+allowed-tools: "Bash(playwright-cli:*), Bash(npx playwright:*), Read, Write, Edit, Glob, Grep"
 ---
 
 # Playwright E2E Skills
