@@ -2,7 +2,8 @@ import { join } from 'node:path'
 import { readFileSync, existsSync } from 'node:fs'
 import { plannedFile, readSkill, type PlannedFile, type SkillFile, type PlanMeta, type Workflow, type AgentDef } from '../generator.js'
 import { renderTemplate, type TemplateContext } from '../template-engine.js'
-import { planAgents } from './agents.js'
+import { planAgents, AGENTS_SKILLS_ROOT } from './agents.js'
+import { wrapperContent } from './wrappers.js'
 
 const MARKER_START = '<!-- wico-playwright-agent-skills:start -->'
 const MARKER_END = '<!-- wico-playwright-agent-skills:end -->'
@@ -26,10 +27,17 @@ export function planCopilot(cwd: string, skillFiles: SkillFile[], workflows: Wor
   const globalPath = join(cwd, '.github', 'copilot-instructions.md')
   const existing = existsSync(globalPath) ? readFileSync(globalPath, 'utf-8') : null
 
+  // `mode: agent` is what makes a prompt file runnable rather than a snippet.
+  const prompts = workflows.map(workflow => plannedFile(
+    join(cwd, '.github', 'prompts', `${workflow.id}.prompt.md`),
+    wrapperContent(workflow, { mode: 'agent', description: workflow.summary }, AGENTS_SKILLS_ROOT, 'The request follows this line.'),
+  ))
+
   return [
     ...planAgents(cwd, skillFiles, workflows, agents, skillsDir, ctx, meta),
     plannedFile(join(cwd, '.github', 'instructions', 'playwright-e2e.instructions.md'), instructions),
     plannedFile(globalPath, mergeCopilotContent(existing, pointer), 'merge'),
+    ...prompts,
   ]
 }
 
