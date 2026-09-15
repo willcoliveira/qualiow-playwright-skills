@@ -106,7 +106,7 @@ Apply tags in the options object (`{ tag: ['@smoke'] }`) for CI filtering:
 <!-- Example:
 - `@smoke` — Critical flows (runs on every PR)
 - `@regression` — Full coverage (runs nightly)
-- `@destructive` — Mutates state another test can observe; own pass, serial, no retries (see `conventions.md`)
+- `@destructive` — Mutates state another test can observe. On Playwright 1.63+ add a `lock` naming the resource; before that, its own serial pass (see `conventions.md`)
 - `@mobile` — Mobile-specific tests
 -->
 
