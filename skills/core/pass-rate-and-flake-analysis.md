@@ -39,6 +39,26 @@ A suite that is green because six defects still reproduce is not the same claim 
 everything works. Report them in separate columns or the number is misleading, and the person
 reading it will draw the wrong conclusion at exactly the wrong moment.
 
+## A test that did not run is not evidence
+
+The four outcomes above describe tests that executed. Every run also produces tests that did not,
+and folding those into a percentage is how a suite comes to be described as green when a third of
+it never started.
+
+| What happened | Treat it as |
+| --- | --- |
+| Skipped by a condition (`test.skip(cond, reason)`) | **Not run** — name the condition in the report |
+| Skipped unconditionally, or `test.fixme` | **Not run** — and it is a debt, not a result |
+| Never started because a setup project or dependency failed | **Blocked** — the cause is the finding, not the count |
+| Interrupted when the run was cancelled or sharded off | **Not run** — the sample is incomplete, say so |
+
+Report these as their own number next to the pass rate, never inside it. "142 of 150 passed, 8 not
+run" is a result someone can act on. "95%" is not, and it is the same figure.
+
+The same applies to a test that ran and proved nothing — one whose assertion cannot distinguish the
+behaviour working from the page never loading. It is not a pass. It is an unverified case wearing a
+green tick, and it is worth more to say so than to keep the number tidy.
+
 ## Stability is per test, not per run
 
 Five green runs can still hide a test that passed for a different reason each time. Record every

@@ -119,6 +119,8 @@ Apply tags in the options object (`{ tag: ['@smoke'] }`) for CI filtering:
 - [ ] Determined authentication needs
 - [ ] Planned test data and teardown
 - [ ] Assigned tags
+- [ ] Marked which cases are covered, partly covered and not covered — a case whose coverage is
+      "the code looks right" is not covered, and listing it as such is how a gap survives a review
 - [ ] Checked the source application for selectors and component behaviour
 - [ ] Verified the test doesn't duplicate existing coverage
 {{#if HAS_PLAYWRIGHT_CLI}}- [ ] Explored the page with `playwright-cli` and validated every selector with `generate-locator`{{/if}}
