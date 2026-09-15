@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { plan, writePlannedFiles } from '../src/generator.js'
-import { validateOutputTree, findRelativeReferences, findOwnedAssetReferences, extractBashBlocks, allowedToolPrefixes, checkBashLine } from '../src/validate.js'
+import { validateOutputTree, findRelativeReferences, findOwnedAssetReferences, extractBashBlocks, allowedToolPrefixes, checkBashLine, stripForbiddenSection } from '../src/validate.js'
 
 const PLATFORM_SETS = [['claude'], ['cursor'], ['copilot'], ['agents'], ['claude', 'cursor', 'copilot', 'agents']]
 const PACK_SETS = [['core'], ['core', 'templates'], ['core', 'playwright-cli'], ['core', 'templates', 'playwright-cli']]
@@ -75,6 +75,13 @@ test('the validator catches the mistakes it exists for', () => {
       'allowed-tools: "Bash(npx playwright:*), Bash(playwright-cli:*)"', '---', '',
       '```bash', 'npx playwright test', '```', '',
     ].join('\n'))
+    write('.claude/commands/bad-cmd.md', ['---', 'description: d', 'tools: Read', '---', '', 'no pointer here', ''].join('\n'))
+    write('.claude/agents/mismatched.md', [
+      '---', 'name: other-name', 'description: d', 'tools: Read', 'model: gpt', '---', '',
+      '# x', '', 'Grade each finding and recommend a fix.', '',
+    ].join('\n'))
+    write('.cursor/commands/bad.md', '# no frontmatter\n')
+    write('.github/prompts/bad.prompt.md', ['---', 'description: d', '---', '', '# x', ''].join('\n'))
     write('.cursor/rules/bad.mdc', '---\ndescription: d\nglobs: "**/*.ts"\n---\n# rule\n')
     write('.github/instructions/bad.instructions.md', '# no applyTo\n')
 
@@ -99,6 +106,15 @@ test('the validator catches the mistakes it exists for', () => {
     expect('`node` is neither a shell builtin nor covered by `allowed-tools`')
     expect('permission rules match the first literal token')
     expect('grants `Bash(playwright-cli:*)` but no command in the skill uses it')
+    expect('command frontmatter key `tools` is not supported')
+    expect('command file does not point at a workflow body')
+    expect('agent `name` must equal the filename "mismatched"')
+    expect('agent `model` must be one of')
+    expect('agent body has no `## Forbidden` section')
+    expect('judgement verb `grade`')
+    expect('judgement verb `recommend`')
+    expect('Cursor command needs a `description`')
+    expect('prompt file needs `mode: agent`')
     assert.ok(
       !messages.some(m => m.includes('basket.page.ts') || m.includes('test-results/results.json')),
       `paths belonging to the reader's project must not be resolved against our tree:\n${messages.join('\n')}`,
@@ -151,4 +167,11 @@ test('checkBashLine matches on the first literal token, longest grant first', ()
   assert.equal(env.prefix, null, 'an assignment shifts npx out of first position, so no grant applies')
 
   assert.equal(checkBashLine('node runner.mjs', prefixes).prefix, null)
+})
+
+test('stripForbiddenSection removes only the Forbidden section, including the last one', () => {
+  const body = '# T\n\nintro\n\n## Rules\n\nkeep me\n\n## Forbidden\n\ndrop me\n'
+  const stripped = stripForbiddenSection(body)
+  assert.ok(stripped.includes('keep me'))
+  assert.ok(!stripped.includes('drop me'), 'a trailing Forbidden section must still be removed')
 })
