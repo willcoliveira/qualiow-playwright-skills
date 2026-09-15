@@ -6,6 +6,8 @@ Reusable Playwright E2E testing knowledge for AI coding assistants, installed as
 
 Instead of every QA engineer teaching their assistant the same Playwright practices from scratch, you install a curated skill once and the agent knows how to plan, write, review and debug tests properly. The skill covers:
 
+- An operating procedure: classify, route, explore, plan with a confidence score, stop for approval, apply, verify, report — with a floor that suppresses a plan the agent is not ready to make, and rules against inventing selectors or shipping skeletons
+- Conventions: the MUST / SHOULD / WON'T rules, tagging, and when a test is `@destructive`
 - Locators and assertions: strict mode, composition, soft assertions, aria snapshots, visual comparison, mocking, clock
 - Fixtures and authentication: `base.extend`, worker scope, setup projects and `storageState`
 - Playwright API patterns: `waitForResponse` ordering, `toPass`, `expect.poll`, network-first safeguards
@@ -67,7 +69,7 @@ Exit codes: `0` success or dry run, `1` usage error, refused overwrite or failed
 | `copilot` | `.agents/skills/playwright-e2e/` + `.github/instructions/playwright-e2e.instructions.md` (path-specific rules) + a short marker block in `.github/copilot-instructions.md` |
 | `agents` | `.agents/skills/playwright-e2e/` only (read by Cursor, Copilot, Codex, Gemini CLI) |
 
-Cursor, Copilot and `agents` share one `.agents/skills/` tree, so selecting several of them writes the skill once. The `SKILL.md` frontmatter follows the Agent Skills spec (`name`, `description`) and carries a `metadata.generator` marker so later runs can recognise their own output.
+Cursor, Copilot and `agents` share one `.agents/skills/` tree, so selecting several of them writes the skill once. The `SKILL.md` frontmatter follows the Agent Skills spec (`name`, `description`, `allowed-tools`) and carries a `metadata.generator` marker so later runs can recognise their own output. The `allowed-tools` grant is scoped to what the references actually run — `playwright-cli` and `npx playwright` — so the agent can follow the debugging workflow without a permission prompt on every step, and no wider.
 
 The Copilot marker block is merged: anything you wrote outside `<!-- wico-playwright-agent-skills:start/end -->` is preserved, and the block written by earlier versions is replaced.
 
@@ -77,6 +79,8 @@ The Copilot marker block is merged: anything you wrote outside `<!-- wico-playwr
 
 | Reference | Covers |
 |-----------|--------|
+| `workflow.md` | The operating procedure: eight phases, the confidence gate, and what not to invent |
+| `conventions.md` | The MUST / SHOULD / WON'T rules, the tag taxonomy and the `@destructive` rule |
 | `playwright-patterns.md` | `waitForResponse` ordering, `toPass` with short inner timeouts, `expect.poll`, network-first safeguards, Zod validation |
 | `api-testing-patterns.md` | Testing an HTTP service with no browser: `APIRequestContext`, per-call credentials for negative auth tests, schema-validated responses, budgets from the service's own timings, delta assertions on shared environments |
 | `locators-and-assertions.md` | Strict mode, selector ladder, `filter`/`and`/`or`, `.contentFrame()`, web-first and soft assertions, aria snapshots, `toHaveScreenshot`, `page.route`/HAR, `page.clock` |
@@ -91,7 +95,7 @@ The Copilot marker block is merged: anything you wrote outside `<!-- wico-playwr
 
 | Reference | Covers |
 |-----------|--------|
-| `project-conventions.md` | MUST/SHOULD/WON'T rules, file organisation, test data, CI conventions, ESLint plugin rules |
+| `project-conventions.md` | This project's own rules on top of `conventions.md`, file organisation, test data, CI conventions, ESLint plugin rules |
 | `page-object-conventions.md` | Class structure, selector priority, component composition, iframes, naming |
 | `test-generation.md` | Spec template, import rules, page objects in tests, form filling, fixtures and tags tables |
 | `test-planning.md` | Exploration with `playwright-cli`, flow phases, plan template, checklist |
@@ -163,9 +167,15 @@ npm run lint                                        # type check
 npm test                                            # node:test suite
 npm run build                                       # single ESM bundle in dist/
 npx tsx scripts/validate-output.ts <project-dir>    # validate generated output
+npx tsx scripts/check-rule-drift.ts <project-dir>  # check the summaries against the rules
 ```
 
-The test suite renders every platform × pack × version × fixture combination into a temp directory and validates the result: no unrendered template syntax, every relative link resolves, `SKILL.md` frontmatter matches the Agent Skills spec, Cursor rules and Copilot instructions have the required keys, and a second run reports every file unchanged. CI repeats that with the built package in a scratch project.
+The test suite renders every platform × pack × version × fixture combination into a temp directory and validates the result: no unrendered template syntax, every relative link resolves, `SKILL.md` frontmatter matches the Agent Skills spec, Cursor rules and Copilot instructions have the required keys, and a second run reports every file unchanged. CI repeats that with the built package in a scratch project, and again with a pruned install (`--platforms claude --packs core`).
+
+Two checks are worth knowing about before editing `skills/`:
+
+- **Every command in a `` ```bash `` fence must be a shell builtin or covered by the skill's own `allowed-tools`.** Adding prose that runs a new binary means adding its grant, and a grant no command uses is reported too. A command line starting with `VAR=value` fails: permission rules match the first literal token, so the assignment hides the real command from the grant.
+- **`skills/rules.manifest.tsv` lists the rules stated in more than one place** — anchor, owning reference, and which summaries restate it. Editing a rule in `skills/core/conventions.md` without editing `cursor-rules.mdc` and `copilot-instructions.md` fails the build. That is the mechanism keeping the four platforms in step; it is not a formality.
 
 ### Project structure
 
@@ -180,6 +190,7 @@ src/
   migrate.ts                Detection and removal of 1.x output
   playwright-skills.ts      Install-command bridge to Playwright's own skill installer
   validate.ts               Output validation used by tests and CI
+  rules.ts                  Rule-drift manifest loader and checker
   platforms/
     skills-dir.ts           Standard <root>/playwright-e2e/{SKILL.md,references/} writer
     claude.ts               .claude/skills/
@@ -190,7 +201,9 @@ skills/
   core/                     Generic references (always installed)
   templates/                Project references rendered with your answers
   indexes/                  skill.md (SKILL.md), cursor-rules.mdc, copilot-instructions.md, copilot-pointer.md
+  rules.manifest.tsv        Rules stated in more than one place, and their anchors
 scripts/validate-output.ts  CLI wrapper around src/validate.ts
+scripts/check-rule-drift.ts CLI wrapper around src/rules.ts
 tests/                      node:test suites
 ```
 
