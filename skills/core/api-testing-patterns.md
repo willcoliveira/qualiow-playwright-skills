@@ -63,6 +63,44 @@ Pin the fields your assertions depend on. Let everything else through: a field t
 next month must not turn into your incident. Parsing in the client rather than in the test means
 every test gets the contract check for free and none of them have to remember.
 
+## The contract is the source, not the runtime
+
+The schema comes from what the service documents — the OpenAPI document, the published contract,
+the ticket that specified the field. Not from what the live environment happened to return today.
+
+When the two disagree, **the service is the bug**. Do not relax the field to make the run green:
+
+```typescript
+// The contract says status is always present and one of two values.
+status: z.enum(['PENDING', 'DONE']),
+
+// Staging sometimes omits it. This is the wrong fix:
+status: z.enum(['PENDING', 'DONE']).optional(),
+```
+
+That edit buys a green run and permanently hides the drift. Nobody will see the missing field
+again, because the schema now says it was never required. Use the known-defect mechanism instead —
+the assertion keeps stating the contract, the run stays honest, and the day the service is fixed the
+wrapper throws and tells you.
+
+Loosening at the object level is a different thing and still correct: `.loose()` lets fields you do
+not assert on pass through. The rule here is about never unpinning a field your test depends on.
+
+## Cover every documented status code
+
+Every status the contract lists gets a test. There are three acceptable states for one, and
+silence is not among them:
+
+| State | What it means |
+| --- | --- |
+| Passing | The service behaves as documented |
+| Known defect | Wrapped, with the ticket id, asserting the documented behaviour |
+| Skipped | `test.skip(cond, 'reason')` naming why and what unblocks it |
+
+Dropping a case because "the API does not do that yet" turns a gap into an absence. The coverage
+report then shows a suite that tests everything the service does, rather than one that tests
+everything the service promised — and those are the same number until the day they are not.
+
 ## Waiting, without sleeping
 
 One helper, one budget, one message. Never `waitForTimeout`.
