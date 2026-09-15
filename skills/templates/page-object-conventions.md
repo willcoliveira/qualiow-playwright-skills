@@ -4,7 +4,7 @@
 
 1. **`page.getByRole()`** — most resilient; recommended for all interactive elements
 2. **`page.getByLabel()`** — form fields with labels
-3. **`page.getByText()`** — visible text content
+3. **`page.getByText()`** / **`page.getByPlaceholder()`** / **`page.getByAltText()`** — visible text content
 4. **`page.getByTestId()`** — `data-testid` attributes (cross-reference the source repo)
 5. **`page.locator('css-selector')`** — CSS as a last resort, never layout-dependent
 
@@ -29,14 +29,20 @@ export class ExamplePage {
   // Locators as readonly class properties
   readonly pageHeading: Locator
   readonly submitButton: Locator
+
+  // Every outcome the form can produce, so a test can assert which one happened
+  readonly successMessage: Locator
   readonly errorMessage: Locator
+  readonly emailFieldError: Locator
 
   constructor(page: Page) {
     this.page = page
     // Define locators in constructor; they are lazy and re-resolve on every use
     this.pageHeading = page.getByRole('heading', { name: 'Example' })
     this.submitButton = page.getByRole('button', { name: 'Submit' })
+    this.successMessage = page.getByRole('status')
     this.errorMessage = page.getByRole('alert')
+    this.emailFieldError = page.getByTestId('email-error')
   }
 
   // Methods wrapped in test.step() for trace reporting
@@ -54,6 +60,24 @@ export class ExamplePage {
   }
 }
 ```
+
+---
+
+## A page object for a form exposes its feedback
+
+A page object that can submit but cannot report what happened is incomplete. Every form or CRUD
+page needs locators for all three outcomes:
+
+- **success** — the confirmation, banner or redirect target that means it worked
+- **error** — the form-level failure message
+- **field validation** — the per-field message, for the fields that have one
+
+Without them, the only thing a test can assert is that the click did not throw. That test passes
+when the form silently rejects the submission, which is the exact regression it was written to
+catch — and it keeps passing, so nobody looks at it again.
+
+The rule is checkable at review time: if the page object has an action method and no locator whose
+name says success, error or validation, it is not finished.
 
 ---
 

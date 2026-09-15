@@ -65,7 +65,7 @@ jobs:
           npm pack --dry-run --json > pack.json
           node -e '
             const files = require("./pack.json")[0].files.map(f => f.path)
-            const required = ["dist/bin/init.js", "skills/indexes/skill.md", "skills/core/agent-debugging.md", "skills/templates/test-generation.md"]
+            const required = ["dist/bin/init.js", "skills/indexes/skill.md", "skills/core/agent-debugging.md", "skills/templates/test-generation.md", "skills/core/conventions.md", "skills/core/workflow.md", "skills/rules.manifest.tsv"]
             const missing = required.filter(f => !files.includes(f))
             const vendored = files.filter(f => f.startsWith("skills/playwright-cli/"))
             if (missing.length) { console.error("missing from package:", missing); process.exit(1) }
@@ -86,6 +86,30 @@ jobs:
 
       - name: Validate generated output
         run: npx tsx scripts/validate-output.ts "$RUNNER_TEMP/proj"
+
+      - name: No rule drift
+        run: npx tsx scripts/check-rule-drift.ts "$RUNNER_TEMP/proj"
+
+      # The minimal install is where a rule stated in a platform summary but
+      # owned by an unselected pack shows up, and it is the only path that
+      # exercises resolveSkillsDir walking up from dist/bin/ in the packed
+      # layout. The in-process matrix covers neither.
+      - name: Generate the pruned variant
+        run: |
+          mkdir -p "$RUNNER_TEMP/proj-min" && cd "$RUNNER_TEMP/proj-min"
+          npm init -y > /dev/null
+          node "$GITHUB_WORKSPACE/dist/bin/init.js" init \
+            --platforms claude --packs core \
+            --project-name pruned-e2e --yes
+          test -f .claude/skills/playwright-e2e/references/conventions.md
+          test -f .claude/skills/playwright-e2e/references/workflow.md
+          test ! -f .claude/skills/playwright-e2e/references/project-conventions.md
+          find . -type f -not -path './node_modules/*' | sort
+
+      - name: Validate the pruned variant
+        run: |
+          npx tsx scripts/validate-output.ts "$RUNNER_TEMP/proj-min"
+          npx tsx scripts/check-rule-drift.ts "$RUNNER_TEMP/proj-min"
 
       - name: Re-run is idempotent
         run: |

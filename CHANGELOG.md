@@ -1,5 +1,60 @@
 # Changelog
 
+## 2.1.0 — 2026-09-15
+
+Gives the generated skill a procedure to follow, and adds the checks that keep the four platform
+copies saying the same thing.
+
+### Added
+
+- **An operating procedure** (`skills/core/workflow.md`, linked from every index). Eight phases —
+  classify, route, explore, plan with a confidence score, stop for approval, apply, verify, report —
+  with the score anchored to evidence rather than to feel, and a floor: below 5 the agent emits no
+  plan at all and asks instead. Plus Direct Mode's one surviving rule (verify the premise before
+  fixing what you were told is broken) and the anti-invention rules: explore before generate, a
+  skeleton counts as a placeholder, and no substitute exploration when `playwright-cli` is absent.
+- **`allowed-tools` on the generated `SKILL.md`**, scoped to the `playwright-cli` and
+  `npx playwright` invocations the references actually contain, so the debugging workflow no longer
+  prompts on every step.
+- **A rule-drift gate** (`skills/rules.manifest.tsv`, `src/rules.ts`, `scripts/check-rule-drift.ts`).
+  Each row names an anchor, the reference that owns it, and the summaries that must restate it
+  verbatim. Editing a rule in one place and not the others now fails the build.
+- **An `allowed-tools` coverage check.** Every command in a `` ```bash `` fence must be a shell
+  builtin or covered by the skill's own grant, a grant no command uses is reported, and a command
+  line opening with `VAR=value` is rejected with the reason.
+- **Non-markdown reference resolution** for the paths this generator owns (`references/`,
+  `scripts/`, `assets/`, `.claude/`, `.agents/`, `.github/`), so a skill can no longer point at a
+  script that does not exist.
+- **Frontmatter key allowlist and a block-scalar guard.** `description: >` used to be stored as the
+  literal `">"` with its continuation lines silently dropped.
+- `skills/core/conventions.md` — the MUST / SHOULD / WON'T rules, now always installed.
+- A tag taxonomy with `@destructive` defined by consequence (state another test can observe), and
+  its consequence: own pass, serial, retries off.
+- The contract-versus-runtime rule for API tests, coverage of every documented status code, the
+  feedback-locator rule for form page objects, and counting the tests that did not run.
+- CI: a pruned `--platforms claude --packs core` install, validated and drift-checked.
+
+### Fixed
+
+- **`init --packs core` shipped a skill with no rules.** The MUST / SHOULD / WON'T list lived in
+  `project-conventions.md`, in the optional `templates` pack, while the Cursor rule and the Copilot
+  instructions restated a subset of it unconditionally. Claude and `.agents` got nothing; Cursor and
+  Copilot cited a constitution that was never installed.
+- **The three rule summaries had drifted.** Cursor had lost the `afterEach` cleanup rule and the
+  `page.evaluate()` ban that Copilot still carried; the pointer block's wording no longer matched
+  the rules; both mirrors listed a four-rung selector ladder where the reference that owns it lists
+  five, dropping `getByPlaceholder` and `getByAltText`.
+- **A core reference ordered a script that is never generated** (`node scripts/run-5x.mjs 5`),
+  replaced with a loop that uses only shell builtins.
+- **A debugging command could never be permitted.** `PLAYWRIGHT_HTML_OPEN=never npx playwright test`
+  puts an assignment in first position, where no `Bash(npx playwright:*)` grant can match it.
+
+### Changed
+
+- `skills/templates/project-conventions.md` keeps only the project-specific layer and points at
+  `conventions.md` for the shared rules.
+
+
 ## 2.0.0 — 2026-09-07
 
 Rework around native Agent Skills support in Cursor, GitHub Copilot, Codex and Gemini CLI, and around Playwright shipping its own `playwright-cli` and `playwright-trace` skills.

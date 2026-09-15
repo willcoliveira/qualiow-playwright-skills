@@ -109,3 +109,6 @@ When performing a review, report findings using this format:
 | `CRITICAL` | Breaks reliability, violates MUST rules, or fails quality gates | Must fix before merge |
 | `WARNING` | Violates SHOULD rules or introduces maintainability risk | Should fix before merge |
 | `INFO` | Suggestion for improvement, not blocking | Fix at your discretion |
+
+When a finding sits between two levels, **go one level lower**. An inflated severity gets the whole
+report discounted; an understated one still gets read, and the reviewer can raise it.

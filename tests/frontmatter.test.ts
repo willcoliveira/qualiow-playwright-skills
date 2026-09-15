@@ -57,3 +57,10 @@ test('withFrontmatter merges into existing frontmatter, data wins, nested maps m
   assert.equal(parsed.body, '\n# Body\n')
   assert.equal(out.split('---').length - 1, 2, 'exactly one frontmatter block')
 })
+
+test('an allowed-tools grant survives serialize and parse unchanged', () => {
+  const grant = 'Bash(playwright-cli:*), Bash(npx playwright:*), Read, Write, Edit, Glob, Grep'
+  const text = serializeFrontmatter({ name: 'playwright-e2e', 'allowed-tools': grant })
+  assert.match(text, /^allowed-tools: "/m)
+  assert.equal(parseFrontmatter(`${text}\nbody\n`).data['allowed-tools'], grant)
+})

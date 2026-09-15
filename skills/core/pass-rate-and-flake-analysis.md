@@ -10,13 +10,17 @@ One green run proves nothing about a suite that talks to a real network. Run it 
 consecutively, keep every run's raw output, and report the distribution.
 
 ```bash
-node scripts/run-5x.mjs 5
+mkdir -p runs
+for i in 1 2 3 4 5; do
+  npx playwright test --reporter=json > /dev/null 2>&1 || true
+  cp test-results/results.json "runs/run-$i.json"
+done
 ```
 
-The script runs the suite N times, copies `test-results/results.json` to `runs/run-N.json` after
-each, and writes a summary. **Copy the file rather than relying on an environment variable to
-redirect the reporter** — that precedence has changed between Playwright versions and the failure
-is silent.
+`|| true` keeps the loop going when a run fails — a failing run is data, not a reason to stop.
+**Copy the file rather than relying on an environment variable to redirect the reporter** — that
+precedence has changed between Playwright versions and the failure is silent, which costs you the
+whole run.
 
 ## Four outcomes, not two
 
@@ -34,6 +38,26 @@ passed and failed throws away the distinction that matters most.
 A suite that is green because six defects still reproduce is not the same claim as a suite where
 everything works. Report them in separate columns or the number is misleading, and the person
 reading it will draw the wrong conclusion at exactly the wrong moment.
+
+## A test that did not run is not evidence
+
+The four outcomes above describe tests that executed. Every run also produces tests that did not,
+and folding those into a percentage is how a suite comes to be described as green when a third of
+it never started.
+
+| What happened | Treat it as |
+| --- | --- |
+| Skipped by a condition (`test.skip(cond, reason)`) | **Not run** — name the condition in the report |
+| Skipped unconditionally, or `test.fixme` | **Not run** — and it is a debt, not a result |
+| Never started because a setup project or dependency failed | **Blocked** — the cause is the finding, not the count |
+| Interrupted when the run was cancelled or sharded off | **Not run** — the sample is incomplete, say so |
+
+Report these as their own number next to the pass rate, never inside it. "142 of 150 passed, 8 not
+run" is a result someone can act on. "95%" is not, and it is the same figure.
+
+The same applies to a test that ran and proved nothing — one whose assertion cannot distinguish the
+behaviour working from the page never loading. It is not a pass. It is an unverified case wearing a
+green tick, and it is worth more to say so than to keep the number tidy.
 
 ## Stability is per test, not per run
 

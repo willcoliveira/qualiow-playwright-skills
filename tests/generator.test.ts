@@ -186,3 +186,19 @@ test('plan rejects unknown platforms and packs', () => {
     rmSync(cwd, { recursive: true, force: true })
   }
 })
+
+test('every generated SKILL.md declares the same allowed-tools grant', () => {
+  const cwd = tempDir()
+  try {
+    writePlannedFiles(plan(makeOptions(cwd, ['claude', 'cursor', 'copilot', 'agents'], ['core', 'templates'])))
+    const grants = ['.claude/skills/playwright-e2e/SKILL.md', '.agents/skills/playwright-e2e/SKILL.md'].map(rel => {
+      const { data } = parseFrontmatter(readFileSync(join(cwd, rel), 'utf-8'))
+      return data['allowed-tools']
+    })
+    assert.equal(typeof grants[0], 'string')
+    assert.match(String(grants[0]), /Bash\(playwright-cli:\*\)/)
+    assert.equal(grants[0], grants[1], 'the two skill trees must carry identical frontmatter')
+  } finally {
+    rmSync(cwd, { recursive: true, force: true })
+  }
+})
