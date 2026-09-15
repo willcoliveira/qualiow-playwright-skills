@@ -151,6 +151,20 @@ await expect(page.getByRole('navigation')).toMatchAriaSnapshot(`
 - Generate the template from the real page: `playwright-cli snapshot` prints the same YAML, or run the assertion empty and `npx playwright test --update-snapshots` fills it in.
 - Use regex for dynamic text: `- heading /Order #\\d+/`.
 - Keep snapshots small and scoped to one region; a whole-page snapshot fails on every unrelated change.
+- `expect(page).toMatchAriaSnapshot(...)` asserts the whole page. Useful for a landing page or an
+  error state where the structure *is* the thing under test; a poor choice for anything with a
+  sidebar someone else owns.
+
+For a check that YAML cannot express — counting items, asserting an order, finding every control
+missing an accessible name — take the tree as data instead:
+
+```typescript
+const tree = await page.ariaSnapshotJSON()
+```
+
+It returns the same tree as `ariaSnapshot()` serialized as JSON rather than YAML, and takes `boxes`,
+`depth`, `mode`, `signal` and `timeout`. Assert against the structure in TypeScript; a snapshot is
+the wrong tool once the assertion needs a loop.
 
 ---
 
@@ -166,6 +180,20 @@ await expect(page.getByTestId('price-chart')).toHaveScreenshot('price-chart.png'
 - Baselines are platform-specific (`price-chart-chromium-linux.png`); generate them on the same OS as CI, ideally inside the Playwright Docker image.
 - Update deliberately with `npx playwright test --update-snapshots`, and review the diff in the HTML report.
 - Mask or hide anything dynamic (timestamps, avatars, animations: `animations: 'disabled'` is the default).
+
+### Rendering preferences are test options, not fixtures to build
+
+Three media preferences are settable per test or per project, and each one is a real rendering mode
+rather than a class you toggle — so a screenshot taken under them is the screenshot that user gets:
+
+```typescript
+test.use({ reducedMotion: 'reduce' })     // or 'no-preference' (default)
+test.use({ forcedColors: 'active' })      // or 'none' (default)
+test.use({ contrast: 'more' })            // or 'no-preference' (default)
+```
+
+`reducedMotion: 'reduce'` is the useful one beyond accessibility work: it stabilises visual
+comparison on anything with a transition, without reaching for a timeout.
 
 ---
 
