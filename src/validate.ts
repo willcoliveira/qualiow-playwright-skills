@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { basename, dirname, join, resolve, relative, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, resolve, relative, sep } from 'node:path'
 import { parseFrontmatter } from './frontmatter.js'
 import { findUnrenderedTemplate } from './template-engine.js'
 
@@ -44,6 +44,7 @@ const SKIPPED_DIRS = new Set(['node_modules', '.git'])
 
 export function validateOutputTree(root: string): ValidationIssue[] {
   const issues: ValidationIssue[] = []
+  const grants = collectSkillGrants(root)
   for (const file of listMarkdownFiles(root)) {
     const text = readFileSync(file, 'utf-8')
     const rel = relative(root, file).split(sep).join('/')
@@ -62,12 +63,51 @@ export function validateOutputTree(root: string): ValidationIssue[] {
     if (/--selector\b/.test(text)) report('uses the non-existent `snapshot --selector` flag')
     if (/browser\.bind\(\s*\)/.test(text)) report('`browser.bind()` requires a session name argument')
 
+    // Files outside a skill directory (Cursor rules, Copilot instructions) are
+    // read as context, never executed, so they carry no grant to check against.
+    const grant = grantFor(grants, file)
+    if (grant !== null) validateBashFences(text, grant, report)
+
     const name = basename(file)
     if (name === 'SKILL.md') validateSkillFile(file, text, report)
     else if (name.endsWith('.mdc')) validateCursorRule(text, report)
     else if (name.endsWith('.instructions.md')) validateCopilotInstructions(text, report)
   }
+
+  for (const grant of grants) {
+    for (const prefix of grant.prefixes) {
+      if (grant.used.has(prefix)) continue
+      issues.push({
+        file: relative(root, grant.file).split(sep).join('/'),
+        message: `\`allowed-tools\` grants \`Bash(${prefix}:*)\` but no command in the skill uses it`,
+      })
+    }
+  }
   return issues
+}
+
+/**
+ * Every command the prose tells the agent to run must be a shell builtin or be
+ * covered by the skill's own `allowed-tools`. A violation here is a generator
+ * bug: we write both the grant and the prose, so they cannot disagree by
+ * accident the way a hand-authored skill's can.
+ */
+function validateBashFences(text: string, grant: SkillGrant, report: (message: string) => void): void {
+  for (const block of extractBashBlocks(text)) {
+    for (const line of block) {
+      const check = checkBashLine(line, grant.prefixes)
+      if (check.envAssignment) {
+        report(
+          `\`${check.token}\` starts a command line; permission rules match the first literal ` +
+            'token, so a VAR=value prefix can never match a Bash(...) grant — move it to its own `export` line',
+        )
+      } else if (check.prefix !== null) {
+        grant.used.add(check.prefix)
+      } else if (!check.builtin) {
+        report(`\`${check.token}\` is neither a shell builtin nor covered by \`allowed-tools\``)
+      }
+    }
+  }
 }
 
 function validateSkillFile(file: string, text: string, report: (message: string) => void): void {
@@ -191,6 +231,78 @@ export function findOwnedAssetReferences(text: string): string[] {
     }
   }
   return [...refs]
+}
+
+/**
+ * Commands a skill may run without a grant. `npx` and `node` are deliberately
+ * absent: they launch arbitrary code and must be granted explicitly.
+ */
+const SHELL_BUILTINS = new Set([
+  'awk', 'cat', 'cd', 'cp', 'diff', 'do', 'done', 'echo', 'elif', 'else', 'esac',
+  'export', 'fi', 'for', 'grep', 'head', 'if', 'ls', 'mkdir', 'mv', 'printf',
+  'read', 'rm', 'sed', 'sort', 'tail', 'tee', 'test', 'then', 'uniq', 'wc', 'while',
+])
+
+/** `Bash(npx playwright:*)` -> `npx playwright`. Non-Bash entries are ignored. */
+export function allowedToolPrefixes(allowedTools: string): string[] {
+  const prefixes: string[] = []
+  for (const match of allowedTools.matchAll(/Bash\(([^)]*?):\*\)/g)) {
+    const prefix = match[1].trim()
+    if (prefix !== '') prefixes.push(prefix)
+  }
+  // Longest first so `npx playwright` wins over `npx`; alphabetical within a
+  // length so the order is deterministic across runs.
+  return prefixes.sort((a, b) => b.length - a.length || a.localeCompare(b))
+}
+
+export interface BashLineCheck {
+  /** The first literal token, exactly as the permission matcher sees it. */
+  token: string
+  /** The granted prefix covering this line, when one does. */
+  prefix: string | null
+  /** The first token is a `VAR=value` assignment, which can never match. */
+  envAssignment: boolean
+  builtin: boolean
+}
+
+export function checkBashLine(line: string, prefixes: readonly string[]): BashLineCheck {
+  const token = line.split(/[ \t]+/)[0] ?? ''
+  const envAssignment = /^[A-Za-z_][A-Za-z0-9_]*=/.test(token)
+  const builtin = !envAssignment && SHELL_BUILTINS.has(token)
+  let prefix: string | null = null
+  if (!envAssignment && !builtin) {
+    prefix = prefixes.find(p => line === p || line.startsWith(`${p} `)) ?? null
+  }
+  return { token, prefix, envAssignment, builtin }
+}
+
+interface SkillGrant {
+  dir: string
+  file: string
+  prefixes: string[]
+  used: Set<string>
+}
+
+function collectSkillGrants(root: string): SkillGrant[] {
+  const grants: SkillGrant[] = []
+  for (const file of listMarkdownFiles(root)) {
+    if (basename(file) !== 'SKILL.md') continue
+    const { data } = parseFrontmatter(readFileSync(file, 'utf-8'))
+    const raw = typeof data['allowed-tools'] === 'string' ? data['allowed-tools'] : ''
+    grants.push({ dir: dirname(file), file, prefixes: allowedToolPrefixes(raw), used: new Set() })
+  }
+  return grants
+}
+
+/** The innermost skill directory containing `file`, if any. */
+function grantFor(grants: readonly SkillGrant[], file: string): SkillGrant | null {
+  let best: SkillGrant | null = null
+  for (const grant of grants) {
+    const rel = relative(grant.dir, file)
+    if (rel.startsWith('..') || isAbsolute(rel)) continue
+    if (best === null || grant.dir.length > best.dir.length) best = grant
+  }
+  return best
 }
 
 function listMarkdownFiles(root: string): string[] {

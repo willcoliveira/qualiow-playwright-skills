@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { plan, writePlannedFiles } from '../src/generator.js'
-import { validateOutputTree, findRelativeReferences, findOwnedAssetReferences, extractBashBlocks } from '../src/validate.js'
+import { validateOutputTree, findRelativeReferences, findOwnedAssetReferences, extractBashBlocks, allowedToolPrefixes, checkBashLine } from '../src/validate.js'
 
 const PLATFORM_SETS = [['claude'], ['cursor'], ['copilot'], ['agents'], ['claude', 'cursor', 'copilot', 'agents']]
 const PACK_SETS = [['core'], ['core', 'templates'], ['core', 'playwright-cli'], ['core', 'templates', 'playwright-cli']]
@@ -65,6 +65,16 @@ test('the validator catches the mistakes it exists for', () => {
       'and `test-results/results.json`.', '',
       '```bash', 'node scripts/missing-runner.mjs 5', 'npx playwright test', '```', '',
     ].join('\n'))
+    write('.claude/skills/env-prefix/SKILL.md', [
+      '---', 'name: env-prefix', 'description: d',
+      'allowed-tools: "Bash(npx playwright:*)"', '---', '',
+      '```bash', 'PLAYWRIGHT_HTML_OPEN=never npx playwright test', '```', '',
+    ].join('\n'))
+    write('.claude/skills/unused-grant/SKILL.md', [
+      '---', 'name: unused-grant', 'description: d',
+      'allowed-tools: "Bash(npx playwright:*), Bash(playwright-cli:*)"', '---', '',
+      '```bash', 'npx playwright test', '```', '',
+    ].join('\n'))
     write('.cursor/rules/bad.mdc', '---\ndescription: d\nglobs: "**/*.ts"\n---\n# rule\n')
     write('.github/instructions/bad.instructions.md', '# no applyTo\n')
 
@@ -86,6 +96,9 @@ test('the validator catches the mistakes it exists for', () => {
     expect('frontmatter `description` uses a YAML block scalar')
     expect('broken reference: scripts/run-5x.mjs')
     expect('broken reference: scripts/missing-runner.mjs')
+    expect('`node` is neither a shell builtin nor covered by `allowed-tools`')
+    expect('permission rules match the first literal token')
+    expect('grants `Bash(playwright-cli:*)` but no command in the skill uses it')
     assert.ok(
       !messages.some(m => m.includes('basket.page.ts') || m.includes('test-results/results.json')),
       `paths belonging to the reader's project must not be resolved against our tree:\n${messages.join('\n')}`,
@@ -118,4 +131,24 @@ test('findOwnedAssetReferences takes only paths this generator owns', () => {
 test('extractBashBlocks drops comments and blank lines', () => {
   const blocks = extractBashBlocks('```bash\n# note\n\nnpx playwright test\n```\n\ntext\n\n```ts\nconst a = 1\n```\n')
   assert.deepEqual(blocks, [['npx playwright test']])
+})
+
+test('allowedToolPrefixes reads the Bash grants and ignores the rest', () => {
+  assert.deepEqual(
+    allowedToolPrefixes('Bash(playwright-cli:*), Bash(npx playwright:*), Read, Write, Glob'),
+    ['npx playwright', 'playwright-cli'],
+  )
+})
+
+test('checkBashLine matches on the first literal token, longest grant first', () => {
+  const prefixes = allowedToolPrefixes('Bash(npx playwright:*), Bash(npx:*)')
+  assert.equal(checkBashLine('npx playwright test --repeat-each 3', prefixes).prefix, 'npx playwright')
+  assert.equal(checkBashLine('npx tsc --noEmit', prefixes).prefix, 'npx')
+  assert.equal(checkBashLine('export FOO=1', prefixes).builtin, true)
+
+  const env = checkBashLine('FOO=1 npx playwright test', prefixes)
+  assert.equal(env.envAssignment, true)
+  assert.equal(env.prefix, null, 'an assignment shifts npx out of first position, so no grant applies')
+
+  assert.equal(checkBashLine('node runner.mjs', prefixes).prefix, null)
 })
