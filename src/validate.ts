@@ -52,8 +52,10 @@ export function validateOutputTree(root: string): ValidationIssue[] {
     const unrendered = findUnrenderedTemplate(text)
     if (unrendered) report(`unrendered template syntax: ${unrendered}`)
 
-    for (const link of findRelativeReferences(text)) {
-      const base = link.startsWith('.') && !link.startsWith('./') && !link.startsWith('../') ? root : dirname(file)
+    const rootRelative = (ref: string): boolean =>
+      ref.startsWith('.') && !ref.startsWith('./') && !ref.startsWith('../')
+    for (const link of [...findRelativeReferences(text), ...findOwnedAssetReferences(text)]) {
+      const base = rootRelative(link) ? root : dirname(file)
       if (!existsSync(resolve(base, link))) report(`broken reference: ${link}`)
     }
 
@@ -139,6 +141,56 @@ export function findRelativeReferences(text: string): string[] {
   for (const match of text.matchAll(/\[[^\]]*\]\(([^)\s]+\.md)(?:#[^)]*)?\)/g)) refs.add(match[1])
   for (const match of text.matchAll(/`([^`\s]+\.md)`/g)) refs.add(match[1])
   return [...refs].filter(ref => !/^[a-z]+:/i.test(ref) && !/[*{}<>]/.test(ref))
+}
+
+/**
+ * The command lines inside each ```bash fence, with comments and blank lines
+ * dropped. Used to resolve `node <path>` references and to check that every
+ * command the prose orders is covered by the skill's own `allowed-tools`.
+ */
+export function extractBashBlocks(text: string): string[][] {
+  const blocks: string[][] = []
+  for (const match of text.matchAll(/^```(?:bash|sh|shell)[ \t]*\r?\n([\s\S]*?)^```/gm)) {
+    const lines = match[1]
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line !== '' && !line.startsWith('#'))
+    if (lines.length > 0) blocks.push(lines)
+  }
+  return blocks
+}
+
+const OWNED_PREFIX_RE = /^(?:references|scripts|assets)\/|^\.(?:claude|agents|github)\//
+const ASSET_EXT_RE = /\.(?:mjs|cjs|js|ts|sh|json)$/
+const RUN_COMMAND_RE = /^(?:node|bash|sh)[ \t]+("[^"]+"|'[^']+'|\S+)/
+
+/**
+ * Executable and data files this generator owns: backticked `scripts/x.mjs`,
+ * markdown links to one, and `node scripts/x.mjs` inside a bash fence.
+ *
+ * The prefix gate is load-bearing. The references are full of illustrative
+ * paths that belong to the reader's project — `src/pages/basket.page.ts`,
+ * `playwright.config.ts`, `test-results/results.json` — and resolving those
+ * against our tree would report a broken reference for every example we give.
+ */
+export function findOwnedAssetReferences(text: string): string[] {
+  const refs = new Set<string>()
+  const add = (ref: string): void => {
+    if (!ASSET_EXT_RE.test(ref)) return
+    if (/^[a-z]+:/i.test(ref) || /[*{}<>$]/.test(ref)) return
+    if (!OWNED_PREFIX_RE.test(ref)) return
+    refs.add(ref)
+  }
+
+  for (const match of text.matchAll(/`([^`\s]+)`/g)) add(match[1])
+  for (const match of text.matchAll(/\[[^\]]*\]\(([^)\s]+)\)/g)) add(match[1])
+  for (const block of extractBashBlocks(text)) {
+    for (const line of block) {
+      const run = RUN_COMMAND_RE.exec(line)
+      if (run) add(run[1].replace(/^["']|["']$/g, ''))
+    }
+  }
+  return [...refs]
 }
 
 function listMarkdownFiles(root: string): string[] {

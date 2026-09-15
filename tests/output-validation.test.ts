@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { plan, writePlannedFiles } from '../src/generator.js'
-import { validateOutputTree, findRelativeReferences } from '../src/validate.js'
+import { validateOutputTree, findRelativeReferences, findOwnedAssetReferences, extractBashBlocks } from '../src/validate.js'
 
 const PLATFORM_SETS = [['claude'], ['cursor'], ['copilot'], ['agents'], ['claude', 'cursor', 'copilot', 'agents']]
 const PACK_SETS = [['core'], ['core', 'templates'], ['core', 'playwright-cli'], ['core', 'templates', 'playwright-cli']]
@@ -58,6 +58,13 @@ test('the validator catches the mistakes it exists for', () => {
     write('.claude/skills/no-frontmatter/SKILL.md', '# no frontmatter\n\nplaywright-cli snapshot --selector "#x"\nconst s = await browser.bind()\n')
     write('.claude/skills/stray-keys/SKILL.md', '---\nname: stray-keys\ndescription: d\nversion: 3\ntools: Bash\n---\n\n# x\n')
     write('.claude/skills/folded/SKILL.md', '---\nname: folded\ndescription: >\n  Wraps onto a second line: and a colon here corrupts it.\n---\n\n# x\n')
+    write('.claude/skills/ghost-script/SKILL.md', [
+      '---', 'name: ghost-script', 'description: d', '---', '',
+      '# x', '',
+      'Run it N times with `scripts/run-5x.mjs`, then read `src/pages/basket.page.ts`',
+      'and `test-results/results.json`.', '',
+      '```bash', 'node scripts/missing-runner.mjs 5', 'npx playwright test', '```', '',
+    ].join('\n'))
     write('.cursor/rules/bad.mdc', '---\ndescription: d\nglobs: "**/*.ts"\n---\n# rule\n')
     write('.github/instructions/bad.instructions.md', '# no applyTo\n')
 
@@ -77,6 +84,12 @@ test('the validator catches the mistakes it exists for', () => {
     expect('frontmatter key `version` is not part of the Agent Skills spec')
     expect('frontmatter key `tools` is not part of the Agent Skills spec')
     expect('frontmatter `description` uses a YAML block scalar')
+    expect('broken reference: scripts/run-5x.mjs')
+    expect('broken reference: scripts/missing-runner.mjs')
+    assert.ok(
+      !messages.some(m => m.includes('basket.page.ts') || m.includes('test-results/results.json')),
+      `paths belonging to the reader's project must not be resolved against our tree:\n${messages.join('\n')}`,
+    )
   } finally {
     rmSync(cwd, { recursive: true, force: true })
   }
@@ -85,4 +98,24 @@ test('the validator catches the mistakes it exists for', () => {
 test('findRelativeReferences ignores URLs and globs', () => {
   const refs = findRelativeReferences('see `references/a.md`, `../b.md`, `c.md`, `.agents/skills/x/SKILL.md`, [d](docs/d.md#top), `https://x.example/e.md`, `**/*.md`, `{{X}}.md`')
   assert.deepEqual(refs.sort(), ['../b.md', '.agents/skills/x/SKILL.md', 'c.md', 'docs/d.md', 'references/a.md'].sort())
+})
+
+test('findOwnedAssetReferences takes only paths this generator owns', () => {
+  const refs = findOwnedAssetReferences([
+    'Run `scripts/pass-rate.mjs`, not `src/pages/basket.page.ts` or `playwright.config.ts`.',
+    'Nor `test-results/results.json`, nor [a link](assets/seed.json), nor `https://x.example/a.js`.',
+    '',
+    '```bash',
+    '# a comment is not a command',
+    'node scripts/runner.mjs 5',
+    'npx playwright test',
+    'cp test-results/results.json "runs/run-$i.json"',
+    '```',
+  ].join('\n'))
+  assert.deepEqual(refs.sort(), ['assets/seed.json', 'scripts/pass-rate.mjs', 'scripts/runner.mjs'].sort())
+})
+
+test('extractBashBlocks drops comments and blank lines', () => {
+  const blocks = extractBashBlocks('```bash\n# note\n\nnpx playwright test\n```\n\ntext\n\n```ts\nconst a = 1\n```\n')
+  assert.deepEqual(blocks, [['npx playwright test']])
 })
