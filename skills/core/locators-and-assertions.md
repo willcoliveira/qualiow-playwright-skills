@@ -47,6 +47,10 @@ const rowWithFailedBadge = page.getByRole('row').filter({ has: page.getByText('F
 const rowsWithoutActions = page.getByRole('row').filter({ hasNot: page.getByRole('button') })
 const visibleAlerts = page.getByRole('alert').filter({ visible: true })
 
+// Playwright 1.63+: a dedicated method, and the recommended replacement for the
+// `:visible` CSS pseudo-class
+await page.getByRole('button', { name: 'Save' }).visible().click()
+
 // Both conditions on the same element
 const primarySubmit = page.getByRole('button', { name: 'Submit' }).and(page.locator('.primary'))
 
