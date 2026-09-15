@@ -80,15 +80,15 @@ The Copilot marker block is merged: anything you wrote outside `<!-- wico-playwr
 | Reference | Covers |
 |-----------|--------|
 | `workflow.md` | The operating procedure: eight phases, the confidence gate, and what not to invent |
-| `conventions.md` | The MUST / SHOULD / WON'T rules, the tag taxonomy and the `@destructive` rule |
+| `conventions.md` | The MUST / SHOULD / WON'T rules, the tag taxonomy, and locking the resource a `@destructive` test contends for |
 | `playwright-patterns.md` | `waitForResponse` ordering, `toPass` with short inner timeouts, `expect.poll`, network-first safeguards, Zod validation |
-| `api-testing-patterns.md` | Testing an HTTP service with no browser: `APIRequestContext`, per-call credentials for negative auth tests, schema-validated responses, budgets from the service's own timings, delta assertions on shared environments |
-| `locators-and-assertions.md` | Strict mode, selector ladder, `filter`/`and`/`or`, `.contentFrame()`, web-first and soft assertions, aria snapshots, `toHaveScreenshot`, `page.route`/HAR, `page.clock` |
+| `api-testing-patterns.md` | Testing an HTTP service with no browser: `APIRequestContext`, per-call credentials for negative auth tests, schema-validated responses, why a typed response is not a validated one, budgets from `apiResponse.timing()`, delta assertions on shared environments |
+| `locators-and-assertions.md` | Strict mode, selector ladder, `filter`/`and`/`or`/`visible()`, `.contentFrame()`, web-first and soft assertions, aria snapshots, `toHaveScreenshot`, `page.route`/HAR, `page.clock` |
 | `fixtures-and-auth.md` | `base.extend` test/worker fixtures, `test.use`, option fixtures, `mergeTests`, setup project + `storageState`, per-role and per-worker accounts |
 | `data-strategy.md` | Static data vs dynamic factories, decision table |
 | `test-review.md` | 7-category checklist, quality gates, severity levels |
-| `pass-rate-and-flake-analysis.md` | Proving determinism by running a suite N times: the four outcomes a JSON report distinguishes, per-test stability, why `retries` hide races |
-| `ci-and-flake-triage.md` | CI config, `describe.configure`, sharding with blob reports, GitHub Actions example, `test.fail/fixme/slow`, flake triage |
+| `pass-rate-and-flake-analysis.md` | Proving determinism by running a suite N times: the four outcomes a JSON report distinguishes, tests that never ran, per-test stability, why `retries` hide races and `failOnFlakyTests` surfaces them |
+| `ci-and-flake-triage.md` | CI config incl. `failOnFlakyTests`, `describe.configure`, sharding with blob reports, GitHub Actions example, `test.fail/fixme/slow`, flake triage |
 | `agent-debugging.md` | The `--debug=cli` attach loop, terminal trace triage, `browser.bind()`; falls back to Inspector/UI mode/`show-trace` on Playwright < 1.59 |
 
 **templates** adds project-specific references rendered with your answers and `<!-- YOUR PROJECT: ... -->` markers to fill in:
@@ -145,6 +145,11 @@ The CLI reads the installed `@playwright/test` (or `playwright`) version from `n
 
 - **>= 1.59**: the references describe `npx playwright test --debug=cli`, `playwright-cli attach`, `npx playwright trace` and `browser.bind()`.
 - **< 1.59 or not found**: the same references describe the Playwright Inspector, UI mode and `show-trace` instead. Pre-releases count as below the version they precede.
+
+Finer-grained version differences are inline notes in the reference rather than a template
+condition, so a reader on an older version still sees what upgrading buys them. Features from
+1.60–1.63 are marked that way: test locks, `locator.visible()`, `failOnFlakyTests`,
+`apiResponse.timing()` and typed request helpers.
 
 ## Template placeholders
 

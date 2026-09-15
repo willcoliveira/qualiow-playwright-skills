@@ -1,5 +1,41 @@
 # Changelog
 
+## 2.3.0 — 2026-09-15
+
+Catches the content up with Playwright 1.60–1.63. No CLI or layout change; the detection thresholds
+(1.59 for the agent-debug workflow, 1.62 for the bundled CLI) are unchanged and correct.
+
+Version differences at this granularity are inline notes in the reference, not a new template
+condition, so a reader below 1.63 still sees what upgrading buys them.
+
+### Changed
+
+- **`@destructive` now locks the resource instead of serialising the suite.** Playwright 1.63 adds
+  `test('...', { lock: 'store-settings' }, ...)`, and tests sharing a lock name never run at the
+  same time across files, workers and projects while everything else stays parallel. The 2.1.0
+  advice — a separate serial pass — is kept as the pre-1.63 fallback. The rule that matters is to
+  lock on the **resource**, not on the tag: `lock: 'destructive'` would serialise every destructive
+  test against every other, which is the blunt behaviour this replaces.
+- The container image in the CI example moves to `v1.63.0-noble`. It was the only hardcoded
+  Playwright version in the content, and it had fallen a release behind the instruction beside it.
+
+### Added
+
+- **`failOnFlakyTests`** in the CI config and the determinism reference. This content already argued
+  that retries are a safety net rather than a strategy and had no mechanism to back it. The setting
+  exits non-zero when anything passed only on retry, so the retry still produces artifacts to
+  diagnose from and the build still goes red.
+- **`locator.visible()`**, alongside `.filter({ visible: true })` — Playwright names it the
+  recommended replacement for the `:visible` pseudo-class.
+- **`apiResponse.timing()`** for request budgets derived from what the service actually did, with
+  the two caveats that bite: every value is `-1` when the response comes from a HAR file, and one
+  observation is not a budget.
+- **Typed request helpers (`request.get<User>()`) documented as a companion to schema validation,
+  not a replacement.** The generic types the response at compile time and asserts nothing at
+  runtime, so a service returning `{}` yields a value the compiler vouches for and a failure three
+  assertions later — the same false confidence the rest of that reference argues against.
+
+
 ## 2.2.0 — 2026-09-15
 
 Five procedures, as commands on every platform that has them.
