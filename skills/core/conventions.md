@@ -47,6 +47,36 @@ work and do not.
 
 <!-- YOUR PROJECT: Add project-specific SHOULD rules here -->
 
+## Test tagging
+
+One **selection** tag per test — the one that decides when it runs (`@smoke`, `@regression`,
+`@e2e`). Area tags (`@checkout`, `@auth`) are additional and optional. Two selection tags on one
+test means neither pipeline owner knows who owns the failure.
+
+`@destructive` is decided by consequence, not by how much the test writes:
+
+| The test... | Destructive? |
+| --- | --- |
+| Creates its own order and deletes it in `afterEach` | **No** — keep its selection tag |
+| Changes the account's locale, currency or feature flags | **Yes** |
+| Promotes, demotes or deletes a shared user | **Yes** |
+| Edits a global setting, a shared catalogue entry or a singleton record | **Yes** |
+| Writes a thousand rows under an id it owns | **No** |
+
+The line is whether another test running at the same time can observe the change. A test that
+creates and removes only its own data is not destructive however much of it there is.
+
+`@destructive` wins over every other tag, and it has a consequence or it is decoration: those tests
+run in their own pass, serially, with retries off.
+
+```bash
+npx playwright test --grep-invert @destructive
+npx playwright test --grep @destructive --workers=1 --retries=0
+```
+
+Retries are off deliberately. A destructive test that passes on retry has already mutated shared
+state once; the green result describes a different starting condition from the one that failed.
+
 ## WON'T
 
 1. **WON'T** use XPath selectors (fragile, hard to read)
