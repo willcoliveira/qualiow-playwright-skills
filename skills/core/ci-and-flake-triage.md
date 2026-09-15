@@ -10,6 +10,7 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,          // a committed test.only fails the build
+  failOnFlakyTests: !!process.env.CI,     // 1.63+: a retry that saved the run still fails it
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 2 : undefined,
   timeout: 30_000,                        // per test
@@ -64,7 +65,7 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
-    container: mcr.microsoft.com/playwright:v1.62.0-noble   # match your @playwright/test version
+    container: mcr.microsoft.com/playwright:v1.63.0-noble   # match your @playwright/test version
     strategy:
       fail-fast: false
       matrix:
@@ -166,5 +167,9 @@ A test is flaky when it fails and then passes on retry with no code change. Retr
 - Keep `retries` at 1–2 on CI and 0 locally so flakes are visible while developing. Use `retries: 0`
   for anything asserting on money or correctness, where a retry turns a real race into a green tick;
   `pass-rate-and-flake-analysis.md` covers how to prove determinism rather than retry around it.
+- **Playwright 1.63+:** `failOnFlakyTests: !!process.env.CI` exits non-zero when anything passed only
+  on retry. It is the setting that stops retries from quietly becoming the strategy — you keep the
+  retry, so a genuine infrastructure blip still produces artifacts and a diagnosis, but the build
+  goes red and somebody has to look. Turn it on before the flaky count is the thing you are tracking.
 - Track the flaky count per week; a rising number means the suite is losing trust.
 - Any test that needed a retry in three consecutive runs gets a ticket.

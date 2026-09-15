@@ -66,16 +66,39 @@ test means neither pipeline owner knows who owns the failure.
 The line is whether another test running at the same time can observe the change. A test that
 creates and removes only its own data is not destructive however much of it there is.
 
-`@destructive` wins over every other tag, and it has a consequence or it is decoration: those tests
-run in their own pass, serially, with retries off.
+### Name the resource, do not serialise the suite
+
+**Playwright 1.63 and later.** Declare a lock naming the thing the test contends for. Tests sharing
+a lock name never run at the same time — across files, workers and projects — and everything else
+stays parallel.
+
+```typescript
+test('changes the store currency', { tag: ['@regression', '@destructive'], lock: 'store-settings' }, async ({ page }) => {
+  // no other test holding 'store-settings' runs while this one does
+})
+
+test('reseeds the catalogue', { lock: ['database', 'search-index'] }, async () => {
+  // a test may contend for more than one resource
+})
+```
+
+Lock on the **resource**, not on the tag. `lock: 'destructive'` would serialise every destructive
+test against every other, which is the blunt version this replaces; a currency test and a catalogue
+test contend for nothing and should still run together.
+
+**Before 1.63**, the fallback is a separate pass:
 
 ```bash
 npx playwright test --grep-invert @destructive
 npx playwright test --grep @destructive --workers=1 --retries=0
 ```
 
-Retries are off deliberately. A destructive test that passes on retry has already mutated shared
-state once; the green result describes a different starting condition from the one that failed.
+Keep the tag either way: it is how CI selects what runs against a shared environment, and the lock
+does not express that.
+
+Retries stay off for these tests on either path. A destructive test that passes on retry has already
+mutated shared state once, so the green result describes a different starting condition from the one
+that failed.
 
 ## WON'T
 

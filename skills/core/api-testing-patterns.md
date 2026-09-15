@@ -63,6 +63,26 @@ Pin the fields your assertions depend on. Let everything else through: a field t
 next month must not turn into your incident. Parsing in the client rather than in the test means
 every test gets the contract check for free and none of them have to remember.
 
+**Playwright 1.63 and later** lets you type the response instead:
+
+```typescript
+const response = await request.get<User>('/api/users/42')
+const user = await response.json()   // typed as User
+```
+
+This is a compile-time convenience and **not** a contract check. The generic tells TypeScript what
+you expect; it asserts nothing at runtime, so a service returning `{}` produces a `user` the compiler
+believes in and the test then fails somewhere confusing, three assertions later. Use both — the
+generic for the editor, the schema for the guarantee:
+
+```typescript
+const response = await request.get<User>('/api/users/42')
+const user = UserSchema.parse(await response.json())
+```
+
+If you have to choose one, choose the schema. Wrong types that fail loudly at the boundary cost
+minutes; wrong types the compiler vouched for cost an afternoon.
+
 ## The contract is the source, not the runtime
 
 The schema comes from what the service documents — the OpenAPI document, the published contract,
@@ -156,6 +176,23 @@ is fixed, the assertion passes and the wrapper throws instead, so a fix cannot l
 Two details that matter: rethrow anything that is not an assertion error, or a `500` during setup
 gets swallowed as "expected"; and make the report generator fail when a finding names a test that no
 longer exists, or the two drift apart within a month.
+
+## Budgets from the response's own timings
+
+**Playwright 1.63 and later.** `apiResponse.timing()` returns resource timing for the response, so
+a budget can be derived from what the service actually did rather than from a number someone picked.
+
+```typescript
+const response = await request.get('/api/orders/42')
+const { responseEnd, requestStart } = response.timing()
+// Assert against a multiple of the observed cost, not an invented constant.
+expect(responseEnd - requestStart).toBeLessThan(2_000)
+```
+
+Two caveats worth knowing before you build on it. Served from a HAR file, every value is `-1`, so a
+test that also runs against a recording needs to skip the assertion rather than fail it. And a single
+observation is not a budget: take it from a handful of runs, and treat the assertion as a guard
+against an order-of-magnitude regression, not a performance test.
 
 ## Request budgets against someone else's service
 
