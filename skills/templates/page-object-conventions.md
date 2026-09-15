@@ -4,7 +4,7 @@
 
 1. **`page.getByRole()`** — most resilient; recommended for all interactive elements
 2. **`page.getByLabel()`** — form fields with labels
-3. **`page.getByText()`** — visible text content
+3. **`page.getByText()`** / **`page.getByPlaceholder()`** / **`page.getByAltText()`** — visible text content
 4. **`page.getByTestId()`** — `data-testid` attributes (cross-reference the source repo)
 5. **`page.locator('css-selector')`** — CSS as a last resort, never layout-dependent
 

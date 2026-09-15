@@ -31,7 +31,7 @@ work and do not.
 ## SHOULD
 
 1. **SHOULD** use `test.step()` in test specs for complex multi-step assertions
-2. **SHOULD** follow the selector ladder: `getByRole()` > `getByLabel()` > `getByText()` > `getByTestId()` > CSS
+2. **SHOULD** follow the selector ladder: `getByRole()` > `getByLabel()` > `getByText()` / `getByPlaceholder()` / `getByAltText()` > `getByTestId()` > CSS (the full ladder is in `locators-and-assertions.md`)
 3. **SHOULD** cross-reference the source application repo for selectors and component structure
 4. **SHOULD** add comments explaining non-obvious timeouts or workarounds
 5. **SHOULD** use descriptive test names that explain the user journey, not the implementation

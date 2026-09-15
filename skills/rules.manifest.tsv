@@ -1,0 +1,28 @@
+# Rules that are stated in more than one place, and the text that must appear
+# verbatim in each of them. Columns are tab separated:
+#
+#   anchor <TAB> owning reference <TAB> surfaces <TAB> label
+#
+# Surfaces: skill (every SKILL.md), cursor (.cursor/rules/*.mdc),
+# copilot (.github/instructions/*.instructions.md), pointer (the merged block
+# in .github/copilot-instructions.md).
+#
+# A row whose owning reference was not installed is skipped, and so is a
+# surface whose platform was not selected. Keep anchors short: they have to
+# survive being phrased for a numbered constitution and for a six-word bullet.
+
+web-first assertions	conventions.md	cursor,copilot,pointer	web-first assertions
+named timeout constants	conventions.md	cursor,copilot	named timeouts
+test.step()	conventions.md	cursor,copilot,pointer	steps in page objects
+readonly class properties	conventions.md	cursor,copilot	locators on the page object
+afterEach	conventions.md	cursor,copilot	resource cleanup
+{ tag: ['@smoke'] }	conventions.md	cursor,copilot	tags in the options object
+XPath	conventions.md	cursor,copilot,pointer	no XPath
+page.waitForTimeout()	conventions.md	cursor,copilot,pointer	no hard waits
+{ force: true }	conventions.md	cursor,copilot,pointer	no forced actions
+networkidle	conventions.md	cursor,copilot	no networkidle
+page.evaluate()	conventions.md	cursor,copilot	no evaluate workarounds
+toPass()	conventions.md	cursor,copilot,pointer	no custom polling loops
+getByPlaceholder	locators-and-assertions.md	cursor,copilot	selector ladder
+getByPlaceholder	conventions.md	-	selector ladder (conventions)
+getByPlaceholder	page-object-conventions.md	-	selector ladder (page objects)

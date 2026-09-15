@@ -25,7 +25,7 @@ Full guidance for {{PROJECT_NAME}} lives in the `playwright-e2e` skill at `.agen
 - Use `page.evaluate()` as a workaround for missing locators
 
 ## Selector Priority
-1. `getByRole()` > 2. `getByLabel()` > 3. `getByText()` > 4. `getByTestId()` > 5. CSS selector
+1. `getByRole()` > 2. `getByLabel()` > 3. `getByText()` / `getByPlaceholder()` / `getByAltText()` > 4. `getByTestId()` > 5. CSS selector
 
 ## Browser automation
 Use the official `playwright-cli` skill (install with `npx playwright cli install --skills=agents`){{#if HAS_PLAYWRIGHT_159}}; debug failing tests with `npx playwright test --debug=cli` and `playwright-cli attach` as described in `.agents/skills/playwright-e2e/references/agent-debugging.md`{{/if}}.

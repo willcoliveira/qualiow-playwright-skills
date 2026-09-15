@@ -6,4 +6,4 @@ This repository uses the `playwright-e2e` agent skill for {{PROJECT_NAME}} (gene
 - Path-specific rules: `.github/instructions/playwright-e2e.instructions.md`
 - Browser automation: the official `playwright-cli` skill (`npx playwright cli install --skills=agents`)
 
-Key rules: web-first assertions, `getByRole()` first, no `waitForTimeout()`/`force: true`/XPath, page objects with `test.step()`, `toPass()`/`expect.poll()` instead of custom polling.
+Key rules: web-first assertions; `getByRole()` first; no XPath, no `page.waitForTimeout()`, no `{ force: true }`; page object methods wrapped in `test.step()`; `toPass()` or `expect.poll()` instead of custom polling loops.
