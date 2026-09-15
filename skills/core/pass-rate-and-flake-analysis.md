@@ -39,6 +39,19 @@ A suite that is green because six defects still reproduce is not the same claim 
 everything works. Report them in separate columns or the number is misleading, and the person
 reading it will draw the wrong conclusion at exactly the wrong moment.
 
+## Make the build notice
+
+Measuring determinism by hand is what this file is for. Keeping it from regressing is a config line:
+
+```typescript
+failOnFlakyTests: !!process.env.CI,   // Playwright 1.63+
+```
+
+The run exits non-zero when any test passed only on retry. That does not make the suite
+deterministic — it makes the loss of determinism arrive as a red build on the day it happens, rather
+than as a number somebody notices a quarter later. Keep `retries` where they are: you still want the
+artifacts from the retry, you just no longer want the green tick that came with them.
+
 ## A test that did not run is not evidence
 
 The four outcomes above describe tests that executed. Every run also produces tests that did not,
