@@ -2,9 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 import { detectLegacyOutputs, removeLegacyOutputs, LEGACY_CURSOR_RULE_DESCRIPTIONS } from '../src/migrate.js'
-import type { PlannedFile } from '../src/generator.js'
+import { plan, writePlannedFiles, type PlannedFile } from '../src/generator.js'
 
 function write(path: string, content: string): void {
   mkdirSync(dirname(path), { recursive: true })
@@ -109,6 +109,46 @@ test('an empty project has nothing to migrate', () => {
   try {
     assert.deepEqual(detectLegacyOutputs(cwd), [])
     assert.deepEqual(removeLegacyOutputs([]), [])
+  } finally {
+    rmSync(cwd, { recursive: true, force: true })
+  }
+})
+
+function makeOptions(cwd: string, platforms: string[], packs: string[]) {
+  return {
+    platforms,
+    packs,
+    cwd,
+    meetsMinPlaywrightVersion: true,
+    generatorVersion: '2.2.0-test',
+    projectInfo: {
+      projectName: 'migrate-suite',
+      baseUrl: 'https://staging.example.com',
+      fixtureImportPath: '',
+      pageObjectsDir: 'src/pages',
+      testDir: 'src/tests',
+    },
+  }
+}
+
+test('a command, prompt or agent whose workflow is gone is flagged; a hand-written one is not', () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'wico-migrate-cmd-'))
+  const put = (rel: string, content: string) => write(join(cwd, rel), content)
+  try {
+    // Generate with the pack, then re-plan without it: the commands are now orphaned.
+    writePlannedFiles(plan(makeOptions(cwd, ['claude', 'cursor', 'copilot'], ['core', 'workflows'])))
+    put('.claude/commands/my-own.md', '---\ndescription: mine\n---\n\nhand written, no marker\n')
+    put('.cursor/commands/team-thing.md', '# ours, not theirs\n')
+
+    const withoutPack = plan(makeOptions(cwd, ['claude', 'cursor', 'copilot'], ['core']))
+    const flagged = detectLegacyOutputs(cwd, withoutPack).map(item => relative(cwd, item.path).split(sep).join('/'))
+
+    assert.ok(flagged.includes('.claude/commands/playwright-plan.md'), `expected the orphaned command, got:\n${flagged.join('\n')}`)
+    assert.ok(flagged.includes('.github/prompts/playwright-plan.prompt.md'), 'prompt files are ours too')
+    assert.ok(flagged.includes('.claude/agents/pw-page-mapper.md'), 'agents are ours too')
+    assert.ok(flagged.includes('.claude/skills/playwright-e2e/workflows/playwright-plan.md'), 'the body goes with them')
+    assert.ok(!flagged.includes('.claude/commands/my-own.md'), 'a command without our marker must never be touched')
+    assert.ok(!flagged.includes('.cursor/commands/team-thing.md'), 'nor one with no frontmatter at all')
   } finally {
     rmSync(cwd, { recursive: true, force: true })
   }

@@ -4,7 +4,7 @@ import type { TemplateContext } from '../template-engine.js'
 import { plannedFile } from '../generator.js'
 import { serializeFrontmatter } from '../frontmatter.js'
 import { planSkillsDir } from './skills-dir.js'
-import { wrapperContent } from './wrappers.js'
+import { wrapperContent, ownershipMarker } from './wrappers.js'
 
 export const CLAUDE_SKILLS_ROOT = ['.claude', 'skills'] as const
 
@@ -45,5 +45,5 @@ function agentContent(agent: AgentDef): string {
     tools: agent.tools,
     model: agent.model,
   }
-  return `${serializeFrontmatter(frontmatter)}\n${agent.body}`
+  return `${serializeFrontmatter(frontmatter)}\n${ownershipMarker(agent.id)}\n\n${agent.body}`
 }
