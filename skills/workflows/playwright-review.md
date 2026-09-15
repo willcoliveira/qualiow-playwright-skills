@@ -8,7 +8,7 @@ allowed-tools: "Bash(npx playwright:*), Read, Glob, Grep"
 
 # Review test code
 
-The checklist in `references/test-review.md`, run in an order that spends attention where it counts.
+The checklist in `../references/test-review.md`, run in an order that spends attention where it counts.
 
 ## 1. Scope the review
 

@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { readFileSync, existsSync } from 'node:fs'
-import { plannedFile, readSkill, type PlannedFile, type SkillFile, type PlanMeta } from '../generator.js'
+import { plannedFile, readSkill, type PlannedFile, type SkillFile, type PlanMeta, type Workflow, type AgentDef } from '../generator.js'
 import { renderTemplate, type TemplateContext } from '../template-engine.js'
 import { planAgents } from './agents.js'
 
@@ -19,7 +19,7 @@ const MARKER_END = '<!-- wico-playwright-agent-skills:end -->'
  * The marker block replaces the block written by earlier versions, and any
  * hand-written content outside the markers is preserved.
  */
-export function planCopilot(cwd: string, skillFiles: SkillFile[], skillsDir: string, ctx: TemplateContext, meta: PlanMeta): PlannedFile[] {
+export function planCopilot(cwd: string, skillFiles: SkillFile[], workflows: Workflow[], agents: AgentDef[], skillsDir: string, ctx: TemplateContext, meta: PlanMeta): PlannedFile[] {
   const instructions = renderTemplate(readSkill(skillsDir, 'indexes/copilot-instructions.md'), ctx)
   const pointer = renderTemplate(readSkill(skillsDir, 'indexes/copilot-pointer.md'), ctx).trimEnd()
 
@@ -27,7 +27,7 @@ export function planCopilot(cwd: string, skillFiles: SkillFile[], skillsDir: str
   const existing = existsSync(globalPath) ? readFileSync(globalPath, 'utf-8') : null
 
   return [
-    ...planAgents(cwd, skillFiles, skillsDir, ctx, meta),
+    ...planAgents(cwd, skillFiles, workflows, agents, skillsDir, ctx, meta),
     plannedFile(join(cwd, '.github', 'instructions', 'playwright-e2e.instructions.md'), instructions),
     plannedFile(globalPath, mergeCopilotContent(existing, pointer), 'merge'),
   ]

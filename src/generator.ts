@@ -6,6 +6,7 @@ import { planClaude } from './platforms/claude.js'
 import { planCursor } from './platforms/cursor.js'
 import { planCopilot } from './platforms/copilot.js'
 import { planAgents } from './platforms/agents.js'
+import { loadWorkflows, loadAgents, type Workflow, type AgentDef } from './workflows.js'
 import { getVersion } from './version.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -18,9 +19,12 @@ export type Platform = (typeof PLATFORMS)[number]
 /** Accepted on the command line / in prompts; `generic` is the pre-2.0 name of `agents`. */
 export const PLATFORM_ALIASES: Record<string, Platform> = { generic: 'agents' }
 
-export const PACKS = ['core', 'templates', 'playwright-cli'] as const
+export const PACKS = ['core', 'templates', 'workflows', 'playwright-cli'] as const
 export type Pack = (typeof PACKS)[number]
-/** Packs that ship markdown files. `playwright-cli` is handled by the installer bridge. */
+/**
+ * Packs that ship `references/`. `workflows` drives its own planner step and
+ * `playwright-cli` is handled by the installer bridge, so neither is listed here.
+ */
 const CONTENT_PACKS = ['core', 'templates'] as const satisfies readonly Pack[]
 
 export interface ProjectInfo {
@@ -99,21 +103,23 @@ export function plan(options: GenerateOptions): PlannedFile[] {
 
   const skillsDir = options.skillsDir ?? resolveSkillsDir()
   const skillFiles = collectSkillFiles(skillsDir, packs, ctx)
+  const workflows = packs.includes('workflows') ? loadWorkflows(skillsDir) : []
+  const agents = packs.includes('workflows') ? loadAgents(skillsDir) : []
 
   const planned: PlannedFile[] = []
   for (const platform of platforms) {
     switch (platform) {
       case 'claude':
-        planned.push(...planClaude(options.cwd, skillFiles, skillsDir, ctx, meta))
+        planned.push(...planClaude(options.cwd, skillFiles, workflows, agents, skillsDir, ctx, meta))
         break
       case 'cursor':
-        planned.push(...planCursor(options.cwd, skillFiles, skillsDir, ctx, meta))
+        planned.push(...planCursor(options.cwd, skillFiles, workflows, agents, skillsDir, ctx, meta))
         break
       case 'copilot':
-        planned.push(...planCopilot(options.cwd, skillFiles, skillsDir, ctx, meta))
+        planned.push(...planCopilot(options.cwd, skillFiles, workflows, agents, skillsDir, ctx, meta))
         break
       case 'agents':
-        planned.push(...planAgents(options.cwd, skillFiles, skillsDir, ctx, meta))
+        planned.push(...planAgents(options.cwd, skillFiles, workflows, agents, skillsDir, ctx, meta))
         break
     }
   }
@@ -218,3 +224,5 @@ export function writeFile(filePath: string, content: string): void {
 export function relativePath(cwd: string, fullPath: string): string {
   return relative(cwd, fullPath).split(sep).join('/')
 }
+
+export type { Workflow, AgentDef }

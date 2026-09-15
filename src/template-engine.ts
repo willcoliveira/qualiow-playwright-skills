@@ -9,9 +9,10 @@ export interface TemplateContext {
   HAS_CORE: boolean
   HAS_TEMPLATES: boolean
   HAS_PLAYWRIGHT_CLI: boolean
+  HAS_WORKFLOWS: boolean
 }
 
-export const ALL_PACKS = ['core', 'templates', 'playwright-cli'] as const
+export const ALL_PACKS = ['core', 'templates', 'workflows', 'playwright-cli'] as const
 export type Pack = (typeof ALL_PACKS)[number]
 
 /**
@@ -133,6 +134,7 @@ export function buildContext(projectInfo: {
     HAS_CORE: packs.includes('core'),
     HAS_TEMPLATES: packs.includes('templates'),
     HAS_PLAYWRIGHT_CLI: packs.includes('playwright-cli'),
+    HAS_WORKFLOWS: packs.includes('workflows'),
   }
 }
 

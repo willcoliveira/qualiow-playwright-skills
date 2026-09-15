@@ -8,7 +8,7 @@ allowed-tools: "Bash(playwright-cli:*), Bash(npx playwright:*), Read, Glob, Grep
 
 # Plan a new test
 
-Phases 1 to 5 of `references/workflow.md`. This produces a plan and stops. It does not write a test,
+Phases 1 to 5 of `../references/workflow.md`. This produces a plan and stops. It does not write a test,
 a page object, or a fixture.
 
 ## 1. Understand what is being asked

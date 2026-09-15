@@ -8,7 +8,7 @@ allowed-tools: "Bash(playwright-cli:*), Bash(npx playwright:*), Read, Write, Edi
 
 # Debug a failing test
 
-The loop in `references/agent-debugging.md`, with the discipline that makes it produce an answer
+The loop in `../references/agent-debugging.md`, with the discipline that makes it produce an answer
 rather than a change that happens to go green.
 
 ## 1. Reproduce it first
@@ -18,13 +18,13 @@ npx playwright test src/tests/checkout.spec.ts -g "submits an order"
 ```
 
 A failure you have not seen is a failure you cannot diagnose. If it passes locally, that is the
-finding — say so and move to the CI-only path in `references/ci-and-flake-triage.md` rather than
+finding — say so and move to the CI-only path in `../references/ci-and-flake-triage.md` rather than
 changing anything.
 
 ## 2. Gather evidence, then classify
 
 Attach to the paused test, or read the trace. Classify against the table in
-`references/agent-debugging.md`: LOCATOR_CHANGED, ELEMENT_REMOVED, NEW_PREREQUISITE, TIMING_ISSUE,
+`../references/agent-debugging.md`: LOCATOR_CHANGED, ELEMENT_REMOVED, NEW_PREREQUISITE, TIMING_ISSUE,
 API_FAILURE, APPLICATION_BUG.
 
 State the classification and the evidence for it before touching a file. "The button's accessible
@@ -44,7 +44,7 @@ name changed from Submit to Place order, per the snapshot" is a diagnosis. "It s
 ## 4. When it is an application bug, leave it failing
 
 Do not fix the test. Do not skip it. Report it: what the test asserts, what the application does,
-and the evidence. Then wrap it as a known defect (`references/api-testing-patterns.md`) only if a
+and the evidence. Then wrap it as a known defect (`../references/api-testing-patterns.md`) only if a
 person decides the suite should be green while the bug is open — that is their call, not yours.
 
 A test quietly adjusted to match broken behaviour removes the only thing that would have caught the

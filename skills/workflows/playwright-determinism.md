@@ -8,7 +8,7 @@ allowed-tools: "Bash(npx playwright:*), Read, Glob, Grep"
 
 # Prove a suite is deterministic
 
-The procedure in `references/pass-rate-and-flake-analysis.md`. The point is to replace an assertion
+The procedure in `../references/pass-rate-and-flake-analysis.md`. The point is to replace an assertion
 with a measurement.
 
 ## 1. Run it N times and keep every run

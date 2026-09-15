@@ -8,7 +8,7 @@ allowed-tools: "Bash(playwright-cli:*), Bash(npx playwright:*), Read, Write, Edi
 
 # Write a test from a plan
 
-Phases 6 to 8 of `references/workflow.md`.
+Phases 6 to 8 of `../references/workflow.md`.
 
 ## Before starting
 
@@ -22,13 +22,13 @@ resolved is the most expensive thing that can happen here, because it fails in C
 
 ## Apply
 
-Write only what the plan named. Follow `references/conventions.md`; it is the list a review holds
+Write only what the plan named. Follow `../references/conventions.md`; it is the list a review holds
 this against. In particular:
 
 - `test` and `expect` come from the project fixtures file, not from `@playwright/test`
 - locators are readonly properties on a page object, and action methods are wrapped in `test.step()`
 - a page object for a form exposes success, error and field-validation locators, or it is not
-  finished — see `references/page-object-conventions.md`
+  finished{{#if HAS_TEMPLATES}} — see `../references/page-object-conventions.md`{{/if}}
 - one selection tag, in the options object, never in the title
 - web-first assertions only; no `page.waitForTimeout()`, no `{ force: true }`, no `networkidle`
 
@@ -42,7 +42,7 @@ npx playwright test src/tests/checkout.spec.ts -g "submits an order" --repeat-ea
 ```
 
 One green run is a single sample. Three consecutive is the minimum before saying it works, and for
-anything that talks to a network see `references/pass-rate-and-flake-analysis.md`.
+anything that talks to a network see `../references/pass-rate-and-flake-analysis.md`.
 
 If it fails, fix the cause. **Never** make it pass by raising a timeout, adding a retry, weakening
 an assertion, or inserting a wait before an action that already auto-waits.
