@@ -58,7 +58,7 @@ test('detects every kind of 1.x output and nothing else', () => {
       join(cwd, '.cursor', 'rules', 'test-review.mdc'),
     ].sort())
 
-    const removed = removeLegacyOutputs(items)
+    const removed = removeLegacyOutputs(items, cwd)
     assert.equal(removed.length, 4)
     assert.ok(!existsSync(join(cwd, '.agent-skills')))
     assert.ok(!existsSync(join(claudeSkill, 'references', 'test-planning.md')))
@@ -82,7 +82,7 @@ test('a 1.x claude index without frontmatter still counts as ours', () => {
     write(join(skill, 'references', 'gone.md'), '# stale')
     const items = detectLegacyOutputs(cwd, [planned(join(skill, 'SKILL.md'))])
     assert.deepEqual(items.map(item => item.path), [join(skill, 'references', 'gone.md')])
-    removeLegacyOutputs(items)
+    removeLegacyOutputs(items, cwd)
     assert.ok(!existsSync(join(skill, 'references')), 'empty references dir is pruned')
   } finally {
     rmSync(cwd, { recursive: true, force: true })
@@ -108,7 +108,7 @@ test('an empty project has nothing to migrate', () => {
   const cwd = mkdtempSync(join(tmpdir(), 'wico-migrate-'))
   try {
     assert.deepEqual(detectLegacyOutputs(cwd), [])
-    assert.deepEqual(removeLegacyOutputs([]), [])
+    assert.deepEqual(removeLegacyOutputs([], cwd), [])
   } finally {
     rmSync(cwd, { recursive: true, force: true })
   }

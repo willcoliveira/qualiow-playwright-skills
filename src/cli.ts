@@ -347,7 +347,7 @@ async function init(flags: CliFlags, cwd: string, env: Environment): Promise<num
   } else {
     let written: string[]
     try {
-      written = writePlannedFiles(planned)
+      written = writePlannedFiles(planned, cwd)
     } catch (err) {
       p.log.error(err instanceof Error ? err.message : String(err))
       p.outro(pc.red('Generation failed.'))
@@ -368,7 +368,7 @@ async function init(flags: CliFlags, cwd: string, env: Environment): Promise<num
       remove = answer
     }
     if (remove) {
-      const removed = removeLegacyOutputs(legacy)
+      const removed = removeLegacyOutputs(legacy, cwd)
       p.log.success(`Removed ${removed.length} item(s)`)
     } else if (!interactive) {
       p.log.info('Re-run with --clean-legacy to remove them.')
