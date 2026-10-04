@@ -34,6 +34,14 @@ export default defineConfig({
 
 Artifacts to upload from CI: `test-results/` (traces, screenshots, videos of failures) and `playwright-report/` or `blob-report/`.
 
+**Treat those artifacts as secrets.** A trace records the value of every `fill()` — including the
+password your setup project types — along with the headers of every request, cookies included, and
+a screenshot or video shows whatever was on screen. Reports embed the traces. Anyone with read access
+to the repository can download its artifacts, which on a public repository means anyone. So: run
+the suite against test accounts that exist only for it; keep saved auth state in `playwright/.auth/`,
+outside every uploaded path; set a short `retention-days`; and on a public repository, prefer
+uploading reports only from runs that never had secrets.
+
 ### Choosing a trace and video mode
 
 Both options take the same seven values. The distinction that matters is **record** versus **keep**:
@@ -54,7 +62,8 @@ begins, which is cheaper and cannot show you the run that actually failed.
 `on-first-retry` is the usual CI default and the reason a flake is so often undiagnosable: the run
 that failed was never recorded, and the retry that was recorded passed. `retain-on-failure-and-retries`
 is the mode to reach for when you are actually chasing one — you get the failing run *and* the retry,
-so you can compare them. Switch back when the flake is fixed; recording every run is not free.
+so you can compare them. Switch back when the flake is fixed; recording every run is not free, and
+every extra trace is one more artifact carrying what the test typed.
 
 ---
 
@@ -125,7 +134,7 @@ jobs:
         with:
           name: html-report
           path: playwright-report
-          retention-days: 14
+          retention-days: 7   # traces inside carry typed values and request headers
 ```
 
 Without the container image, run `npx playwright install --with-deps` after `npm ci`.
