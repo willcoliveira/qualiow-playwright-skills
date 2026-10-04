@@ -41,9 +41,16 @@ export function buildInstallCommands(detection: SkillsDetection, platforms: read
   if (wantsClaude) targets.push({ flag: '--skills', dir: CLAUDE_CLI_SKILL_DIR })
   if (wantsAgents) targets.push({ flag: '--skills=agents', dir: AGENTS_CLI_SKILL_DIR })
 
-  const base = detection.hasBundledCli
+  // npx runs a local binary when one is installed and otherwise downloads a
+  // package *by the binary's name* from the registry. For `playwright-cli` that
+  // is the deprecated `playwright-cli` package, not the `@playwright/cli` the
+  // project declares, and for `playwright` it is whatever is latest rather than
+  // the version in package.json. So a command is only runnable against a
+  // package that is installed; a version range alone gets printed guidance.
+  const playwrightInstalled = detection.playwright?.source === 'installed'
+  const base = detection.hasBundledCli && playwrightInstalled
     ? ['npx', 'playwright', 'cli']
-    : detection.playwrightCli
+    : detection.playwrightCli?.source === 'installed'
       ? ['npx', 'playwright-cli']
       : null
 
@@ -54,7 +61,7 @@ export function buildInstallCommands(detection: SkillsDetection, platforms: read
     for (const target of targets) {
       commands.push({ argv: [...base, 'install', target.flag], label: `playwright-cli skill → ${target.dir}` })
     }
-    if (detection.playwright && detection.meetsMinVersion) {
+    if (playwrightInstalled && detection.meetsMinVersion) {
       commands.push({
         argv: ['npx', 'playwright', 'trace', 'install-skill'],
         label: `playwright-trace skill → ${CLAUDE_TRACE_SKILL_DIR}`,
@@ -66,7 +73,11 @@ export function buildInstallCommands(detection: SkillsDetection, platforms: read
   }
 
   const flags = targets.map(target => target.flag)
-  if (detection.playwright) {
+  const declared = [detection.playwright, detection.playwrightCli].filter(pkg => pkg?.source === 'range')
+  if (declared.length > 0) {
+    const cli = detection.hasBundledCli || detection.playwrightCli === null ? 'npx playwright cli' : 'npx playwright-cli'
+    notes.push(`${declared.map(pkg => pkg!.name).join(' and ')} ${declared.length > 1 ? 'are' : 'is'} declared in package.json but not installed, and npx would download a package from the registry rather than use yours. Run \`npm install\` first, then: ${flags.map(flag => `\`${cli} install ${flag}\``).join(' and ')}.`)
+  } else if (detection.playwright) {
     notes.push(`Playwright ${detection.playwright.version} predates the bundled CLI (needs >= 1.62). Upgrade with \`npm i -D @playwright/test@latest\`, then run: ${flags.map(flag => `\`npx playwright cli install ${flag}\``).join(' and ')}.`)
   } else {
     notes.push('Playwright was not detected in this project. Install `@playwright/test` (>= 1.62), then run: ' + flags.map(flag => `\`npx playwright cli install ${flag}\``).join(' and ') + '.')

@@ -19,6 +19,7 @@ import {
 import { detectLegacyOutputs, removeLegacyOutputs, type LegacyItem } from './migrate.js'
 import { buildInstallCommands, formatCommand, runInstall, type InstallPlan } from './playwright-skills.js'
 import { getVersion } from './version.js'
+import { findUnsafeCharacter } from './template-engine.js'
 
 export const EXIT_OK = 0
 export const EXIT_ERROR = 1
@@ -118,6 +119,12 @@ export function parseFlags(argv: readonly string[]): CliFlags {
     throw new CliUsageError(`Unexpected arguments: ${positionals.slice(1).join(' ')}`)
   }
 
+  for (const flag of ['project-name', 'fixture-import-path', 'page-objects-dir', 'test-dir'] as const) {
+    const value = values[flag]
+    const problem = value === undefined ? undefined : findUnsafeCharacter(value)
+    if (problem) throw new CliUsageError(`--${flag}: ${problem}`)
+  }
+
   const baseUrl = values['base-url']
   if (baseUrl !== undefined) {
     const problem = validateBaseUrl(baseUrl)
@@ -184,6 +191,9 @@ function parseList<T extends string>(flag: string, raw: string, normalize: (id: 
 
 export function validateBaseUrl(value: string): string | undefined {
   if (value.trim() === '') return undefined
+  // The URL parser silently strips tabs and newlines, so check the raw text first.
+  const unsafe = findUnsafeCharacter(value)
+  if (unsafe) return unsafe
   try {
     const url = new URL(value)
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return 'must start with http:// or https://'
@@ -347,7 +357,7 @@ async function init(flags: CliFlags, cwd: string, env: Environment): Promise<num
   } else {
     let written: string[]
     try {
-      written = writePlannedFiles(planned)
+      written = writePlannedFiles(planned, cwd)
     } catch (err) {
       p.log.error(err instanceof Error ? err.message : String(err))
       p.outro(pc.red('Generation failed.'))
@@ -368,7 +378,7 @@ async function init(flags: CliFlags, cwd: string, env: Environment): Promise<num
       remove = answer
     }
     if (remove) {
-      const removed = removeLegacyOutputs(legacy)
+      const removed = removeLegacyOutputs(legacy, cwd)
       p.log.success(`Removed ${removed.length} item(s)`)
     } else if (!interactive) {
       p.log.info('Re-run with --clean-legacy to remove them.')
@@ -441,9 +451,15 @@ function reportDetection(detection: ProjectDetection): void {
 }
 
 async function collectProjectInfo(flags: CliFlags, detection: ProjectDetection, needsTemplateInfo: boolean, interactive: boolean): Promise<ProjectInfo | null> {
-  const defaults: ProjectInfo = { ...DEFAULT_PROJECT_INFO, projectName: detection.packageName ?? DEFAULT_PROJECT_INFO.projectName }
+  // package.json belongs to whoever wrote the repository, not to the person running init.
+  let detectedName = detection.packageName
+  if (detectedName !== null && findUnsafeCharacter(detectedName)) {
+    p.log.warn(`Ignoring the package.json name: it contains a line break or control character. Using "${DEFAULT_PROJECT_INFO.projectName}".`)
+    detectedName = null
+  }
+  const defaults: ProjectInfo = { ...DEFAULT_PROJECT_INFO, projectName: detectedName ?? DEFAULT_PROJECT_INFO.projectName }
 
-  const projectName = await resolveText(flags.projectName, defaults.projectName, interactive, { message: 'Project name:' })
+  const projectName = await resolveText(flags.projectName, defaults.projectName, interactive, { message: 'Project name:', validate: validateSingleLine })
   if (projectName === null) return null
 
   if (!needsTemplateInfo) {
@@ -460,18 +476,23 @@ async function collectProjectInfo(flags: CliFlags, detection: ProjectDetection, 
   const fixtureImportPath = await resolveText(flags.fixtureImportPath, defaults.fixtureImportPath, interactive, {
     message: 'Fixture import path (or "none" for @playwright/test):',
     placeholder: '../fixtures/test-fixture',
+    validate: validateSingleLine,
   })
   if (fixtureImportPath === null) return null
 
-  const pageObjectsDir = await resolveText(flags.pageObjectsDir, defaults.pageObjectsDir, interactive, { message: 'Page objects directory:' })
+  const pageObjectsDir = await resolveText(flags.pageObjectsDir, defaults.pageObjectsDir, interactive, { message: 'Page objects directory:', validate: validateSingleLine })
   if (pageObjectsDir === null) return null
 
-  const testDir = await resolveText(flags.testDir, defaults.testDir, interactive, { message: 'Test directory:' })
+  const testDir = await resolveText(flags.testDir, defaults.testDir, interactive, { message: 'Test directory:', validate: validateSingleLine })
   if (testDir === null) return null
 
   const info = { projectName, baseUrl, fixtureImportPath, pageObjectsDir, testDir }
   p.log.info(`Project: ${info.projectName}, base URL ${info.baseUrl}, fixtures ${info.fixtureImportPath || 'none'}, pages ${info.pageObjectsDir}, tests ${info.testDir}`)
   return info
+}
+
+function validateSingleLine(value: string | undefined): string | undefined {
+  return findUnsafeCharacter(value ?? '')
 }
 
 interface TextPrompt {

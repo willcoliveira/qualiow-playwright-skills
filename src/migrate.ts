@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path'
 import { parseFrontmatter } from './frontmatter.js'
 import { PACKAGE_NAME, type PlannedFile } from './generator.js'
 import { SKILL_NAME, WORKFLOWS_SUBDIR } from './platforms/skills-dir.js'
+import { assertInsideProject, isInsideProject } from './containment.js'
 
 export interface LegacyItem {
   /** Absolute path. */
@@ -122,13 +123,16 @@ export function detectLegacyOutputs(cwd: string, planned: readonly PlannedFile[]
     if (reason) items.push({ path: vendoredDir, kind: 'dir', reason })
   }
 
-  return items
+  // A skill directory symlinked out of the project would otherwise offer the
+  // files it points at for deletion, under an in-project name.
+  return items.filter(item => isInsideProject(cwd, item.path))
 }
 
-export function removeLegacyOutputs(items: readonly LegacyItem[]): string[] {
+export function removeLegacyOutputs(items: readonly LegacyItem[], cwd: string): string[] {
   const removed: string[] = []
   for (const item of items) {
     if (!existsSync(item.path)) continue
+    assertInsideProject(cwd, item.path)
     rmSync(item.path, { recursive: true, force: true })
     removed.push(item.path)
     if (item.kind === 'file') pruneEmptyDir(dirname(item.path))

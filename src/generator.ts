@@ -8,6 +8,7 @@ import { planCopilot } from './platforms/copilot.js'
 import { planAgents } from './platforms/agents.js'
 import { loadWorkflows, loadAgents, type Workflow, type AgentDef } from './workflows.js'
 import { getVersion } from './version.js'
+import { assertInsideProject } from './containment.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -124,7 +125,11 @@ export function plan(options: GenerateOptions): PlannedFile[] {
     }
   }
 
-  return dedupePlanned(planned)
+  const files = dedupePlanned(planned)
+  // Fail the plan, not the write: a dry run then reports the same refusal, and
+  // nothing is half-written when one path out of sixty is unsafe.
+  for (const file of files) assertInsideProject(options.cwd, file.path)
+  return files
 }
 
 /** Several platforms share `.agents/skills`; identical files are planned once. */
@@ -142,11 +147,16 @@ function dedupePlanned(planned: PlannedFile[]): PlannedFile[] {
   return [...byPath.values()]
 }
 
-/** Writes new and modified files; unchanged files are skipped. Returns written paths. */
-export function writePlannedFiles(planned: PlannedFile[]): string[] {
+/**
+ * Writes new and modified files; unchanged files are skipped. Returns written paths.
+ * `plan()` has already refused anything outside the project; passing `root`
+ * checks each path again immediately before it is written.
+ */
+export function writePlannedFiles(planned: PlannedFile[], root?: string): string[] {
   const written: string[] = []
   for (const file of planned) {
     if (file.status === 'unchanged') continue
+    if (root !== undefined) assertInsideProject(root, file.path)
     writeFile(file.path, file.content)
     written.push(file.path)
   }

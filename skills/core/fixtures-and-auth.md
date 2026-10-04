@@ -145,7 +145,9 @@ setup('authenticate', async ({ page }) => {
 })
 ```
 
-Add `playwright/.auth/` to `.gitignore`: the file contains session cookies.
+Add `playwright/.auth/` to `.gitignore`: the file contains session cookies. Treat it as a
+credential everywhere else too: never upload it as a CI artifact, and never write it under
+`test-results/` (the default `outputDir`), which CI setups routinely upload whole.
 
 ### What the file actually holds
 
@@ -164,6 +166,11 @@ await page.context().storageState({
 If auth "works locally but the saved state logs out immediately", this is the first thing to check:
 a token in IndexedDB is simply not in the file unless you asked for it, and the failure looks like a
 session-expiry bug rather than a missing option.
+
+Each opt-in widens what a leaked file gives away. `credentials: true` saves the virtual passkey
+itself — that is what lets it be restored — so the file stops being a session that expires and
+becomes a login that does not. Use it only with a test account that exists for the suite, and turn
+on only the options the app actually needs.
 
 ### Faster: authenticate through the API
 
@@ -210,7 +217,11 @@ export const test = base.extend<{}, { workerStorageState: string }>({
 
   workerStorageState: [async ({ browser }, use) => {
     const id = test.info().parallelIndex
-    const fileName = path.resolve(test.info().project.outputDir, `.auth/${id}.json`)
+    // Under playwright/.auth/, like the shared state, so it is git-ignored and never swept
+    // into an uploaded test-results/ artifact. Unlike test-results/, it survives between
+    // runs: delete it when the session expires, or the next run starts logged out.
+    const { name } = test.info().project
+    const fileName = path.resolve('playwright/.auth', `${name}-worker-${id}.json`)
     if (fs.existsSync(fileName)) {
       await use(fileName)
       return
@@ -235,7 +246,7 @@ export const test = base.extend<{}, { workerStorageState: string }>({
 
 - [ ] Setup project has `testMatch` for `*.setup.ts` and browser projects list it in `dependencies`
 - [ ] The setup test asserts a logged-in signal before saving state
-- [ ] State files are ignored by git and written under `playwright/.auth/` or the project `outputDir`
+- [ ] State files are written under `playwright/.auth/`, ignored by git, and never uploaded as a CI artifact
 - [ ] Credentials come from environment variables, never from test files
 - [ ] Tests that mutate account data use per-worker accounts or clean up after themselves
 - [ ] Session expiry is shorter than a CI run? Re-authenticate in a fixture instead of relying on a stale file

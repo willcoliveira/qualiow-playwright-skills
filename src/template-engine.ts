@@ -107,6 +107,23 @@ function collapseBlankLines(text: string): string {
   return out.join('\n')
 }
 
+/**
+ * Line breaks, other control characters and bidirectional overrides. Every
+ * project value lands inside markdown an agent reads as instructions, and the
+ * default project name comes from a package.json the user may not have written:
+ * a newline there starts a line of the attacker's choosing in the generated
+ * file, and a bidi override hides what a line says from the person reviewing it.
+ */
+const UNSAFE_CHAR_RE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]/
+
+/** Describes the first unsafe character in `value`, or returns undefined when there is none. */
+export function findUnsafeCharacter(value: string): string | undefined {
+  const match = UNSAFE_CHAR_RE.exec(value)
+  if (!match) return undefined
+  const code = match[0].codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')
+  return `must be a single line of plain text (found U+${code} at position ${match.index + 1})`
+}
+
 export interface ContextOptions {
   meetsMinPlaywrightVersion?: boolean
   packs?: readonly string[]
@@ -119,6 +136,10 @@ export function buildContext(projectInfo: {
   pageObjectsDir: string
   testDir: string
 }, options: ContextOptions = {}): TemplateContext {
+  for (const [key, value] of Object.entries(projectInfo)) {
+    const problem = findUnsafeCharacter(value)
+    if (problem) throw new Error(`${key} ${problem}`)
+  }
   const fixtureImportPath = projectInfo.fixtureImportPath.trim()
   const hasCustomFixture = fixtureImportPath !== '' && fixtureImportPath.toLowerCase() !== 'none'
   const packs = options.packs ?? ALL_PACKS
