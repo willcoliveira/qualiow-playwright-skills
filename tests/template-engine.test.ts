@@ -104,3 +104,9 @@ test('findUnrenderedTemplate flags our syntax but not GitHub Actions expressions
   assert.equal(findUnrenderedTemplate('Name: {{PROJECT_NAME}}'), '{{PROJECT_NAME}}')
   assert.equal(findUnrenderedTemplate('nothing here'), null)
 })
+
+test('buildContext refuses a project value that spans lines', () => {
+  assert.throws(() => buildContext({ ...baseInfo, projectName: 'a\nb' }), /projectName must be a single line/)
+  assert.throws(() => buildContext({ ...baseInfo, testDir: 'src/tests x' }), /testDir/)
+  assert.doesNotThrow(() => buildContext({ ...baseInfo, projectName: 'Shop — staging' }))
+})
