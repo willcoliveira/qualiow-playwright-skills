@@ -73,3 +73,23 @@ test('nothing usable installed: print guidance only', () => {
   assert.equal(none.runnable, false)
   assert.ok(none.notes[0].includes('not detected'))
 })
+
+test('a package that is only declared, not installed, is never run through npx', () => {
+  // `npx playwright-cli` with nothing installed fetches the deprecated `playwright-cli`
+  // package from the registry, not the `@playwright/cli` the project declares.
+  const cliDeclared = buildInstallCommands({
+    playwright: null,
+    playwrightCli: { name: '@playwright/cli', version: '0.4.0', source: 'range' },
+    meetsMinVersion: false,
+    hasBundledCli: false,
+  }, ['claude'])
+  assert.equal(cliDeclared.runnable, false)
+  assert.deepEqual(cliDeclared.commands, [])
+  assert.ok(cliDeclared.notes[0].includes('@playwright/cli is declared in package.json but not installed'))
+  assert.ok(cliDeclared.notes[0].includes('`npx playwright-cli install --skills`'))
+
+  // A range new enough for the bundled CLI is still not an installed one.
+  const bundledDeclared = buildInstallCommands({ ...bundled, playwright: { name: '@playwright/test', version: '1.63.0', source: 'range' } }, ['claude'])
+  assert.equal(bundledDeclared.runnable, false)
+  assert.ok(bundledDeclared.notes[0].includes('`npx playwright cli install --skills`'))
+})
