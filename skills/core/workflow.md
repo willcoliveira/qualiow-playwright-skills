@@ -37,12 +37,15 @@ plan, not a silent addition.
 **7 — Verify.** Run the tests you touched, more than once:
 
 ```bash
-npx playwright test src/tests/checkout.spec.ts -g "submits an order" --repeat-each 3
+npx playwright test src/tests/checkout.spec.ts -g "submits an order" --repeat-each=3 --retries=0
 ```
 
-One green run is not verification — it is one sample from a distribution you have not measured. For
-anything that talks to a network, see `pass-rate-and-flake-analysis.md`. Never make a test pass by
-raising a timeout, adding a retry, or weakening an assertion.
+One green run is not verification — it is one sample from a distribution you have not measured, and
+three only show the test is not broken: they miss a test that fails half the time once in eight
+tries. `--retries=0` keeps the config's retries from turning a failure into a pass. For a claim about
+stability, or anything that talks to a network, size the run count as `pass-rate-and-flake-analysis.md`
+describes. A new test must also be seen to fail for the reason it exists before it counts as
+verified. Never make a test pass by raising a timeout, adding a retry, or weakening an assertion.
 
 **8 — Report.** What changed, what you ran to verify it, and what is still unknown. The unknowns
 are the part with value; a report without them is a claim, not a result.

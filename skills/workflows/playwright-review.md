@@ -31,13 +31,18 @@ not spent on them:
 | `page.evaluate(` used instead of a locator | Selectors |
 | A spec file over 300 lines | Readability |
 | A test with no `expect` | Assertions |
+| `toBeHidden()`, `.not.toBeVisible()` or `toHaveCount(0)` with no earlier assertion on the same locator or its replacement | Assertions |
+| `.first()`, `.last()` or `.nth(` | Selectors |
 
 ## 3. Judgement pass
 
 Only now, and only on what the mechanical pass could not answer:
 
 - **Do the assertions mean anything?** A test that asserts a page loaded proves nothing about the
-  feature. This is the finding that matters most and the one a grep will never make.
+  feature. This is the finding that matters most and the one a grep will never make. Ask of each
+  assertion what change to the application would make it fail; if the answer is "none", it is
+  decoration. An absence check without a presence anchor and a value asserted in one of the three
+  places the page shows it are the usual forms.
 - **Is it isolated?** Would it pass if it ran second, or in parallel with its sibling? Does it clean
   up state another test can observe — and if it mutates shared state, is it tagged `@destructive`?
 - **Does the page object report outcomes?** A form page object with no success, error or validation

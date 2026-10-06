@@ -23,6 +23,9 @@ page.waitForTimeout()	conventions.md	cursor,copilot,pointer	no hard waits
 networkidle	conventions.md	cursor,copilot	no networkidle
 page.evaluate()	conventions.md	cursor,copilot	no evaluate workarounds
 toPass()	conventions.md	cursor,copilot,pointer	no custom polling loops
+presence anchor	conventions.md	cursor,copilot	presence anchor before absence
+presence anchor	locators-and-assertions.md	-	presence anchor (locators)
+presence anchor	test-review.md	-	presence anchor (review checklist)
 getByPlaceholder	locators-and-assertions.md	cursor,copilot	selector ladder
 getByPlaceholder	conventions.md	-	selector ladder (conventions)
 getByPlaceholder	page-object-conventions.md	-	selector ladder (page objects)

@@ -16,6 +16,7 @@ Full guidance: read `.agents/skills/playwright-e2e/SKILL.md` and follow its deci
 - Use short inner timeouts inside `toPass` blocks
 - Clean up test resources in `afterEach` hooks
 - Tag tests with `{ tag: ['@smoke'] }` options, not in the title
+- Give every absence assertion (`toBeHidden()`, `toHaveCount(0)`) a presence anchor — prove the same locator matched first
 
 ## WON'T
 - Use XPath selectors
