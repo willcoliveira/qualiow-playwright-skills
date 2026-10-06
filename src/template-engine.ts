@@ -27,10 +27,12 @@ export type Pack = (typeof ALL_PACKS)[number]
  * blank lines outside fenced code are collapsed to a single blank line.
  * Unknown condition keys throw, because silently dropping content hides typos.
  *
- * Preserves `<!-- YOUR PROJECT: ... -->` markers for human editing.
+ * Preserves `<!-- YOUR PROJECT: ... -->` markers for human editing. Drops the
+ * `<!-- ts-check: ... -->` lines that steer `npm run check:fences`: they are for
+ * this repo's CI, not for the agent reading the generated file.
  */
 export function renderTemplate(template: string, ctx: TemplateContext): string {
-  let result = renderConditionals(template, ctx)
+  let result = renderConditionals(template, ctx).replace(TS_CHECK_LINE_RE, '')
 
   result = result.replace(/\{\{(\w+)\}\}/g, (match, key: string) => {
     const value = ctx[key as keyof TemplateContext]
@@ -39,6 +41,8 @@ export function renderTemplate(template: string, ctx: TemplateContext): string {
 
   return collapseBlankLines(result)
 }
+
+const TS_CHECK_LINE_RE = /^[ \t]*<!-- ts-check:[^\n]*-->[ \t]*\r?\n/gm
 
 // Matches the innermost {{#if}} block (its body contains no other {{#if}}).
 // Groups: 1 = key, 2 = newline right after the opening tag, 3 = body,

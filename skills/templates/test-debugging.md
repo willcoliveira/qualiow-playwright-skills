@@ -8,7 +8,7 @@
 | Symptom | Root Cause | Fix |
 |---------|-----------|-----|
 | `Timeout ... waiting for locator` | Element not rendered yet or selector changed | Check the selector against the current page; assert the state the element depends on |
-| `strict mode violation` | Locator matches more than one element | Narrow with `getByRole({ name, exact })`, `filter()` or a scoped chain |
+| `strict mode violation` | Locator matches more than one element — on every run it is too broad; on some runs only, a transient duplicate (optimistic UI, a re-render) | Narrow with `getByRole({ name, exact })`, `filter()` or a scoped chain; if intermittent, also assert the settled state before acting. Never `.first()` (`locators-and-assertions.md`) |
 | Test passes locally but fails on CI | Timing, viewport, missing env vars, shared data across workers | See `ci-and-flake-triage.md`; check CI secrets and per-worker data |
 | Element not clickable / intercepted | Overlay or loader still visible | Assert the overlay is hidden first; never `force: true` |
 | `page.goto()` timeout | Slow page or wrong URL | Check `baseURL`; wait for a specific element instead of the load event |
@@ -30,6 +30,10 @@ Playwright errors include the locator that failed, the timeout that was exceeded
 # Only the failing test, one browser, trace for every attempt
 npx playwright test {{TEST_DIR}}/checkout.spec.ts -g "submits an order" --project chromium --trace on
 ```
+
+If it fails only sometimes, count before changing anything: add `--repeat-each=20 --retries=0` and
+write the result down as failures out of runs. That is the baseline the fix is measured against
+(`pass-rate-and-flake-analysis.md`).
 
 {{#if HAS_PLAYWRIGHT_159}}
 ### 3. Attach to the paused test (agents)
@@ -73,7 +77,7 @@ playwright-cli close
 
 ### 6. CI artifacts
 
-- `test-results/` holds traces, screenshots and videos of failed attempts (with `trace: 'on-first-retry'`, the retry has the trace).
+- `test-results/` holds traces, screenshots and videos of failed attempts (with `trace: 'on-first-retry'`, the retry has the trace). Recent Playwright versions also write `test-results/<attempt>/error-context.md` for each failed attempt: the error plus the page's accessibility tree when it failed — often enough to tell LOCATOR_CHANGED from ELEMENT_REMOVED without opening the trace.
 - `playwright-report/` (or the merged blob report) shows every attempt, the retry count and "flaky" markers.
 
 ---

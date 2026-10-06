@@ -21,8 +21,10 @@ for i in 1 2 3 4 5; do
 done
 ```
 
-Five is the floor, not the target. `|| true` matters: a failing run is the data, not a reason to
-stop the loop.
+Five is the floor, not the target. Five clean runs of a test bound its failure rate only below
+about 60% — at 95% confidence, zero failures in *n* runs means a rate under roughly 3/*n*. Size *N*
+to the claim you intend to make (`../references/pass-rate-and-flake-analysis.md` has the table).
+`|| true` matters: a failing run is the data, not a reason to stop the loop.
 
 ## 2. Classify every result
 
@@ -40,17 +42,23 @@ reason each time. List any test whose outcome varied, with the outcomes it produ
 
 ## 4. Report a distribution
 
-```
-5 runs × 47 tests
-  225  passed
-   10  known bug still reproduces
-    0  failed
-    5  flaky
-    0  did not run
+Write it as markdown a reviewer can paste into a PR unchanged — on GitHub Actions, append the same
+text to the file `$GITHUB_STEP_SUMMARY` names and it renders on the run page:
+
+```markdown
+**5 runs × 47 tests**
+
+| Outcome | Count |
+| --- | ---: |
+| Passed | 225 |
+| Known bug still reproduces | 10 |
+| Failed | 0 |
+| Flaky | 5 |
+| Did not run | 0 |
 
 1 test did not produce the same outcome every run:
-  checkout.spec.ts › applies the promo code
-    passed, passed, flaky, passed, flaky
+
+- `checkout.spec.ts › applies the promo code` — passed, passed, flaky, passed, flaky
 ```
 
 Never report "the suite passes". Report what happened, how many times, and which tests moved.

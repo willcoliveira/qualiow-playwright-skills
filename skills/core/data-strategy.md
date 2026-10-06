@@ -100,6 +100,7 @@ export function generateUser(overrides: Partial<UserData> = {}): UserData {
 
 ### Usage in tests
 
+<!-- ts-check: skip three alternative ways to build the same user -->
 ```typescript
 // Fully random user — unique per test run
 const user = generateUser()

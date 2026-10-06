@@ -31,6 +31,12 @@ jobs:
       - name: Test
         run: npm test
 
+      # Every ```typescript fence in skills/ compiled against the installed
+      # @playwright/test types: an example that does not compile teaches an
+      # API that does not exist. Directives are documented in the script.
+      - name: Type-check skill code fences
+        run: npm run check:fences
+
       - name: Build
         run: npm run build
 
@@ -65,7 +71,7 @@ jobs:
           npm pack --dry-run --json > pack.json
           node -e '
             const files = require("./pack.json")[0].files.map(f => f.path)
-            const required = ["dist/bin/init.js", "skills/indexes/skill.md", "skills/core/agent-debugging.md", "skills/templates/test-generation.md", "skills/core/conventions.md", "skills/core/workflow.md", "skills/rules.manifest.tsv", "skills/core/delegation-rules.md", "skills/workflows/playwright-plan.md", "skills/agents/pw-page-mapper.md"]
+            const required = ["dist/bin/init.js", "skills/indexes/skill.md", "skills/core/agent-debugging.md", "skills/templates/test-generation.md", "skills/core/conventions.md", "skills/core/workflow.md", "skills/rules.manifest.tsv", "skills/core/delegation-rules.md", "skills/workflows/playwright-plan.md", "skills/workflows/playwright-ci.md", "skills/agents/pw-page-mapper.md"]
             const missing = required.filter(f => !files.includes(f))
             const vendored = files.filter(f => f.startsWith("skills/playwright-cli/"))
             if (missing.length) { console.error("missing from package:", missing); process.exit(1) }
@@ -129,6 +135,13 @@ jobs:
             test -f "$body" || { echo "$f points at $body, which was not generated"; exit 1; }
           done
           test -f .claude/agents/pw-page-mapper.md
+          test -f .claude/agents/pw-failure-indexer.md
+          for id in playwright-plan playwright-test playwright-debug playwright-review playwright-determinism playwright-ci; do
+            for f in ".claude/commands/$id.md" ".cursor/commands/$id.md" ".github/prompts/$id.prompt.md" ".agents/skills/playwright-e2e/workflows/$id.md"; do
+              test -f "$f" || { echo "missing $f"; exit 1; }
+            done
+            grep -q "$id" .agents/skills/playwright-e2e/SKILL.md || { echo "SKILL.md does not name $id"; exit 1; }
+          done
 
       - name: Validate the workflows variant
         run: |

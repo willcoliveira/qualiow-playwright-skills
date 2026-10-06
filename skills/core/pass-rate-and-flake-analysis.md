@@ -43,6 +43,7 @@ reading it will draw the wrong conclusion at exactly the wrong moment.
 
 Measuring determinism by hand is what this file is for. Keeping it from regressing is a config line:
 
+<!-- ts-check: wrap-config -->
 ```typescript
 failOnFlakyTests: !!process.env.CI,   // Playwright 1.63+
 ```
@@ -82,6 +83,40 @@ const unstable = [...outcomes.entries()].filter(([, o]) => new Set(o).size > 1)
 ```
 
 That list, not the aggregate, is the honest answer to "is this deterministic".
+
+## Measure a flake before and after, with retries off
+
+A fix for an intermittent failure is a claim that its rate went down, and a claim about a rate needs
+a rate on both sides. Before changing anything, run the one test enough times to see it fail, with
+retries off so every failure is counted as one:
+
+```bash
+npx playwright test tests/checkout.spec.ts -g "pays" --repeat-each=30 --retries=0
+```
+
+Write the result down as failures out of runs: 6 of 30. After the fix, run the same command again,
+with at least as many repeats. If the measurement before the fix shows no failures, you have not
+reproduced it — that is the finding, and a change made now cannot be shown to have done anything.
+
+**Size the run count to the claim.** Zero failures in *n* runs does not mean a rate of zero. At 95%
+confidence it means the rate is below roughly **3/n** — the rule of three:
+
+| Clean runs | The rate is below about |
+| ---: | ---: |
+| 3 | no useful bound |
+| 10 | 30% |
+| 30 | 10% |
+| 100 | 3% |
+| 300 | 1% |
+
+Three green runs miss a test that fails half the time once in eight tries (0.5³ = 12.5%), and miss a
+one-in-five flake about half the time (0.8³ ≈ 51%). So choose *n* after the fix so that 3/*n* is at
+most half the rate you measured before it: a test that failed 6 of 30 times (20%) needs at least 30
+clean runs before "fixed" means the rate halved, and more before it means gone. Say the bound in the
+report — "0 of 60, so below about 5%" — rather than "it passes now".
+
+A failure that reproduced on every run is a different claim. A handful of green runs shows the
+deterministic failure is gone; it says nothing about whether the fix introduced a flake of its own.
 
 ## The table
 

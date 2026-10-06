@@ -4,8 +4,9 @@ import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { plan, writePlannedFiles } from '../src/generator.js'
-import { loadWorkflows, loadAgents } from '../src/workflows.js'
-import { stripForbiddenSection } from '../src/validate.js'
+import { loadWorkflows, loadAgents, mergeAllowedTools } from '../src/workflows.js'
+import { stripForbiddenSection, allowedToolPrefixes } from '../src/validate.js'
+import { parseFrontmatter } from '../src/frontmatter.js'
 
 const SKILLS_DIR = join(import.meta.dirname, '..', 'skills')
 
@@ -103,6 +104,51 @@ test('every agent is a mapping, not an opinion', () => {
       if (/\b(?:not|never|no)\b/i.test(line)) continue
       for (const verb of verbs) {
         assert.ok(!new RegExp(`\\b${verb}\\b`, 'i').test(line), `${agent.id} asks for judgement: "${line.trim()}"`)
+      }
+    }
+  }
+})
+
+test('mergeAllowedTools keeps the skill grant first and adds only what is new', () => {
+  assert.equal(
+    mergeAllowedTools('Bash(npx playwright:*), Read', [{ allowedTools: 'Read, Bash(gh run view:*)' }, { allowedTools: '' }, { allowedTools: 'Bash(npx playwright:*), Grep' }]),
+    'Bash(npx playwright:*), Read, Bash(gh run view:*), Grep',
+  )
+  assert.equal(mergeAllowedTools('', []), '')
+})
+
+test('the skill grants every command its workflows run, and nothing extra without them', () => {
+  const workflows = loadWorkflows(SKILLS_DIR)
+  const declared = new Set(workflows.flatMap(w => allowedToolPrefixes(w.allowedTools)))
+  const grantOf = (cwd: string, tree: string): string[] => {
+    const { data } = parseFrontmatter(readFileSync(join(cwd, tree, 'playwright-e2e/SKILL.md'), 'utf-8'))
+    return allowedToolPrefixes(typeof data['allowed-tools'] === 'string' ? data['allowed-tools'] : '')
+  }
+
+  withProject(['claude', 'agents'], ['core', 'workflows'], cwd => {
+    for (const tree of ['.claude/skills', '.agents/skills']) {
+      const granted = grantOf(cwd, tree)
+      for (const prefix of declared) assert.ok(granted.includes(prefix), `${tree} SKILL.md does not grant Bash(${prefix}:*)`)
+    }
+  })
+
+  withProject(['claude', 'agents'], ['core'], cwd => {
+    for (const tree of ['.claude/skills', '.agents/skills']) {
+      const granted = grantOf(cwd, tree)
+      assert.ok(!granted.some(prefix => /^(?:gh|git)\b/.test(prefix)), `${tree} SKILL.md grants a workflow command without the workflows pack: ${granted.join(', ')}`)
+    }
+  })
+})
+
+test('no workflow pre-approves a merge, an approval or a push', () => {
+  // Every grant a workflow declares lands in the skill's own grant, so a broad
+  // one here would pre-approve these for every task the skill is loaded for.
+  const forbidden = ['gh pr merge', 'gh pr review', 'git push', 'git rebase', 'git reset']
+  for (const workflow of loadWorkflows(SKILLS_DIR)) {
+    for (const prefix of allowedToolPrefixes(workflow.allowedTools)) {
+      for (const command of forbidden) {
+        const covers = command === prefix || command.startsWith(`${prefix} `)
+        assert.ok(!covers, `${workflow.id} grants Bash(${prefix}:*), which covers \`${command}\``)
       }
     }
   }

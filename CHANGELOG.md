@@ -1,5 +1,43 @@
 # Changelog
 
+## Unreleased
+
+Guidance on proving a fix and a test, a sixth procedure for CI, and a check that keeps the
+TypeScript examples compiling. Ideas prompted by a read of TesterArmy's open-source e2e framework;
+no text or code was copied.
+
+### Added
+
+- **`/playwright-ci`.** Reads a pull request's failed CI log before touching anything, sorts each
+  failure into this PR's code, a stale base (`git merge-base --is-ancestor`) or infrastructure,
+  then fixes, updates the branch, or reruns infrastructure exactly once. The same failure twice is
+  not flake. Downloaded reports go to `pw-failure-indexer`. Never adds retries, skips or
+  `test.fixme`, never merges, approves or pushes to the base. With the workflows pack, SKILL.md's
+  grant gains only the narrow `gh`/`git` read and rerun commands it runs.
+- **Measure a flake fix.** `/playwright-debug` and the pass-rate reference measure the failure
+  rate before and after with `--repeat-each=N --retries=0`, and size N to the claim (0 failures in
+  n runs bounds the rate at about 3/n; three green runs miss a 50% flake one time in eight).
+- **Watch a new test fail.** `/playwright-test` breaks the assertion that carries the case once,
+  confirms it fails there, and reverts.
+- **Absence needs a presence anchor** (conventions MUST 9). `toBeHidden()` and `toHaveCount(0)`
+  pass on a mistyped locator; assert the element, or its replacement, was there first.
+- **Live match count** for hand-composed locators: `playwright-cli run-code` must report 1.
+- **A value shown in several places** is asserted in every place.
+- `--list` before a filtered run, the npm `--` forwarding trap, PR-ready markdown reports with a
+  `$GITHUB_STEP_SUMMARY` step, a scan of test artifacts for the credential before upload, a
+  staleness policy for recorded HAR files, and a short example spec at the top of SKILL.md.
+- `pw-failure-indexer` reports one row per attempt (outcome, error class, first in-test frame) and
+  quotes `error-context.md`; it still never says which failures share a cause.
+- **`npm run check:fences`** type-checks every TypeScript example in `skills/` against
+  `@playwright/test` 1.63, in CI and before publish. `<!-- ts-check: … -->` lines steer a fence;
+  generation drops them.
+
+### Fixed
+
+- Strict-mode guidance contradicted itself: a violation on every run is a locator bug, one on some
+  runs is a transient duplicate — narrow the locator and assert the settled state, never `.first()`.
+- An API-testing example used `randomInt` without importing it.
+
 ## 2.4.1 — 2026-10-04
 
 A security release. Upgrade if you run `init` in repositories you did not write, or if your suite

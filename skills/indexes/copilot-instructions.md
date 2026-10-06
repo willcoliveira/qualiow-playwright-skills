@@ -14,6 +14,7 @@ Full guidance for {{PROJECT_NAME}} lives in the `playwright-e2e` skill at `.agen
 - Use short inner timeouts inside `toPass` blocks
 - Clean up test resources in `afterEach`
 - Tag tests with `{ tag: ['@smoke'] }` options, not in the title
+- Give every absence assertion (`toBeHidden()`, `toHaveCount(0)`) a presence anchor — prove the same locator matched first
 
 ## WON'T
 - Use XPath selectors

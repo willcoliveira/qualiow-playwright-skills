@@ -1,7 +1,8 @@
 import { join } from 'node:path'
 import { plannedFile, readSkill, PACKAGE_NAME, type PlannedFile, type SkillFile, type PlanMeta, type Workflow } from '../generator.js'
 import { renderTemplate, type TemplateContext } from '../template-engine.js'
-import { withFrontmatter } from '../frontmatter.js'
+import { parseFrontmatter, withFrontmatter, type FrontmatterData } from '../frontmatter.js'
+import { mergeAllowedTools } from '../workflows.js'
 
 export const SKILL_NAME = 'playwright-e2e'
 export const WORKFLOWS_SUBDIR = 'workflows'
@@ -21,9 +22,17 @@ export function planSkillsDir(root: string, skillFiles: SkillFile[], workflows: 
   const files: PlannedFile[] = []
 
   const index = renderTemplate(readSkill(skillsDir, 'indexes/skill.md'), ctx)
-  const stamped = withFrontmatter(index, {
+  const stamp: FrontmatterData = {
     metadata: { generator: PACKAGE_NAME, 'generator-version': meta.generatorVersion },
-  })
+  }
+  // The workflow bodies below sit inside this skill, so its grant has to cover
+  // the commands they run. Without the workflows pack there is nothing to add.
+  if (workflows.length > 0) {
+    const declared = parseFrontmatter(index).data['allowed-tools']
+    const merged = mergeAllowedTools(typeof declared === 'string' ? declared : '', workflows)
+    if (merged !== '') stamp['allowed-tools'] = merged
+  }
+  const stamped = withFrontmatter(index, stamp)
   files.push(plannedFile(join(skillDir, 'SKILL.md'), stamped))
 
   for (const skill of skillFiles) {

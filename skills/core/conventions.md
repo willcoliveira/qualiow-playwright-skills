@@ -21,11 +21,12 @@ work and do not.
 6. **MUST** use short inner timeouts inside `toPass` blocks (e.g. `{ timeout: 1_000 }` for inner assertions when outer `toPass` has `{ timeout: 30_000 }`)
 7. **MUST** clean up test resources in `afterEach` hooks (cancel orders, release reservations, etc.)
 8. **MUST** tag tests for CI filtering using the options object (`test.describe('Checkout', { tag: ['@smoke'] }, ...)`), not the title
+9. **MUST** give every absence assertion (`toBeHidden()`, `.not.toBeVisible()`, `toHaveCount(0)`) a presence anchor — assert earlier in the test that the same locator matched, or that what replaces it is visible. All three pass for a locator that matches nothing, a typo included (`locators-and-assertions.md`)
 
 <!-- YOUR PROJECT: Add project-specific MUST rules here -->
 <!-- Example:
-9. **MUST** use `createTestUser` fixture for creating new test users
-10. **MUST** clean up resources in `afterEach` via API helper
+10. **MUST** use `createTestUser` fixture for creating new test users
+11. **MUST** clean up resources in `afterEach` via API helper
 -->
 
 ## SHOULD
@@ -37,7 +38,7 @@ work and do not.
 5. **SHOULD** use descriptive test names that explain the user journey, not the implementation
 6. **SHOULD** keep test data in dedicated data files, not inline in tests
 7. **SHOULD** use `{ exact: true }` for `getByText()` / `getByRole()` when the text could match multiple elements
-8. **SHOULD** prefer positive assertions (`toBeHidden()`, `toBeDisabled()`) over negated ones (`.not.toBeVisible()`, `.not.toBeEnabled()`)
+8. **SHOULD** prefer positive assertions (`toBeHidden()`, `toBeDisabled()`) over negated ones (`.not.toBeVisible()`, `.not.toBeEnabled()`) — for the clearer failure message, not for safety: `toBeHidden()` is exactly as vacuous as `.not.toBeVisible()` without a presence anchor (MUST 9)
 9. **SHOULD** use semantic timeout names that match the operation:
    - `SHORT` (5s) — quick visibility checks
    - `MEDIUM` (10s) — standard interactions

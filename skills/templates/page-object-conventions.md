@@ -85,6 +85,7 @@ name says success, error or validation, it is not finished.
 
 Shared UI elements are modeled as components and composed into page objects:
 
+<!-- ts-check: declare CheckoutForm -->
 ```typescript
 // Component ({{PAGE_OBJECTS_DIR}}/components/basket.ts)
 export class Basket {
@@ -111,12 +112,19 @@ export class CheckoutPage {
 
 Scope a component to its container when the same widget appears more than once on a page:
 
+<!-- ts-check: wrap-class -->
 ```typescript
 constructor(readonly root: Locator) {
   this.orderTotal = root.getByTestId('order-total')
 }
 // new Basket(page.getByRole('region', { name: 'Your basket' }))
 ```
+
+A scoped component builds every one of its locators by composition, so none of them came from
+`generate-locator`. Count each one on the live page before a test relies on it — the command is in
+`locators-and-assertions.md` — and expect 1. A root that matches two regions makes every locator
+under it a strict-mode violation; a root that matches none makes every absence assertion under it
+pass.
 
 <!-- YOUR PROJECT: Add your component inventory here -->
 <!-- Example:
@@ -132,6 +140,7 @@ constructor(readonly root: Locator) {
 
 Prefer fixtures (see `fixtures-and-auth.md`); a lazy factory is the lightweight alternative:
 
+<!-- ts-check: declare HomePage, LoginPage, CheckoutPage -->
 ```typescript
 function createTestPages(page: Page) {
   return {
@@ -153,6 +162,7 @@ await pages.checkoutPage.submit()
 
 For payment widgets or embedded forms, locate the `<iframe>` and enter it with `.contentFrame()`:
 
+<!-- ts-check: wrap-class -->
 ```typescript
 readonly paymentFrame: FrameLocator
 readonly cardNumberField: Locator
