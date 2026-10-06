@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.5.0 — 2026-10-06
 
 Guidance on proving a fix and a test, a sixth procedure for CI, and a check that keeps the
 TypeScript examples compiling. Ideas prompted by a read of TesterArmy's open-source e2e framework;
