@@ -24,6 +24,7 @@ expect(response.status()).toBe(200)
 
 ### With URL pattern matching
 
+<!-- ts-check: declare seatMapPage -->
 ```typescript
 const responsePromise = page.waitForResponse(
   (resp) => resp.url().includes('/api/seats') && resp.status() === 200

@@ -110,3 +110,21 @@ test('buildContext refuses a project value that spans lines', () => {
   assert.throws(() => buildContext({ ...baseInfo, testDir: 'src/tests x' }), /testDir/)
   assert.doesNotThrow(() => buildContext({ ...baseInfo, projectName: 'Shop — staging' }))
 })
+
+test('drops ts-check directive lines and keeps the fence they steer', () => {
+  const ctx = buildContext(baseInfo)
+  const out = renderTemplate('Intro\n\n<!-- ts-check: declare CheckoutPage -->\n```ts\nconst a = 1\n```\n', ctx)
+  assert.equal(out.includes('ts-check'), false)
+  assert.equal(out, 'Intro\n\n```ts\nconst a = 1\n```\n')
+})
+
+test('every generated file is free of ts-check directives', async () => {
+  const { readdirSync, readFileSync, statSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const walk = (dir: string): string[] =>
+    readdirSync(dir).flatMap(n => (statSync(join(dir, n)).isDirectory() ? walk(join(dir, n)) : [join(dir, n)]))
+  const ctx = buildContext(baseInfo)
+  const sources = walk('skills').filter(f => f.endsWith('.md') || f.endsWith('.mdc'))
+  assert.ok(sources.some(f => readFileSync(f, 'utf-8').includes('<!-- ts-check:')), 'fixture: sources carry directives')
+  for (const f of sources) assert.equal(renderTemplate(readFileSync(f, 'utf-8'), ctx).includes('<!-- ts-check:'), false, f)
+})

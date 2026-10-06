@@ -6,6 +6,30 @@ allowed-tools: "Bash(playwright-cli:*), Bash(npx playwright:*), Read, Write, Edi
 
 # Playwright E2E Skills
 
+## What a finished spec looks like
+
+```typescript
+import { test, expect } from '{{#if HAS_CUSTOM_FIXTURE}}{{FIXTURE_IMPORT_PATH}}{{else}}../fixtures{{/if}}' // the project fixtures, never '@playwright/test'
+
+test.describe('Checkout', { tag: ['@smoke'] }, () => {           // one selection tag, in the options object
+  test('a signed-in shopper places an order for one item', async ({ checkoutPage }) => {
+    await checkoutPage.goto()
+    await expect(checkoutPage.placeOrderButton).toBeEnabled()    // web-first: retries until true
+
+    await checkoutPage.placeOrder()                              // page-object action, wrapped in test.step()
+
+    await expect(checkoutPage.confirmation).toHaveText(/Order #\d+ placed/) // the outcome, not "the page loaded"
+    await expect(checkoutPage.headerBasketCount).toHaveText('0') // every place the change shows up
+    await expect(checkoutPage.placeOrderButton).toBeHidden()     // absence, anchored: it matched above
+  })
+})
+```
+
+Locators live on the page object as readonly properties, each one resolved against the real page.
+No `page.waitForTimeout()`, no `{ force: true }`, no XPath, no retry that turns a failure green. The
+rules behind each line are in `references/conventions.md`; the test is verified by watching it fail
+once, not only by watching it pass.
+
 ## Operating Procedure
 
 Work in phases and say which one you are in. Detail is in `references/workflow.md`.
@@ -86,7 +110,7 @@ What do you need to do?
 
 {{#if HAS_WORKFLOWS}}## Procedures
 
-Five procedures ship with this skill. On Claude Code, Cursor and GitHub Copilot each is also a
+Six procedures ship with this skill. On Claude Code, Cursor and GitHub Copilot each is also a
 command you can invoke directly. Anywhere else — Codex, Gemini CLI, any agent reading
 `.agents/skills/` — ask for one by name and read its file; the content is identical.
 
@@ -97,6 +121,7 @@ command you can invoke directly. Anywhere else — Codex, Gemini CLI, any agent 
 | Debug a failure | `/playwright-debug` | Reproduce, classify from evidence, fix or report |
 | Review test code | `/playwright-review` | Mechanical pass, then judgement, in that order |
 | Prove determinism | `/playwright-determinism` | Run N times and report the distribution |
+| Get a PR's CI green | `/playwright-ci` | Watch a PR's CI run and drive it to green or a clear human hand-off |
 
 Bodies are in `workflows/`. Delegation limits are in `references/delegation-rules.md`.
 

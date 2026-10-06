@@ -19,6 +19,7 @@ export default defineConfig({
 auth tests. A default header cannot be removed for one request, and an empty-string header is not
 the same request as a missing one — which is exactly the distinction those tests exist to make.
 
+<!-- ts-check: wrap-class -->
 ```typescript
 private headers(auth: 'key' | 'none' | 'wrong'): Record<string, string> {
   const h: Record<string, string> = { accept: 'application/json' }
@@ -30,6 +31,8 @@ private headers(auth: 'key' | 'none' | 'wrong'): Record<string, string> {
 
 ## Two ways to call, and when each is right
 
+<!-- ts-check: wrap-class -->
+<!-- ts-check: declare Input, Thing, Event, RawResponse -->
 ```typescript
 /** Asserts the documented contract. Throws on anything else. */
 async createThing(input: Input): Promise<Thing> {
@@ -51,6 +54,7 @@ observation** — a duplicate, a rejection, a rate limit. A helper that throws o
 
 ## Contracts with a schema
 
+<!-- ts-check: declare z -->
 ```typescript
 export const Thing = z.object({
   id: z.string().min(1),
@@ -65,6 +69,7 @@ every test gets the contract check for free and none of them have to remember.
 
 **Playwright 1.63 and later** lets you type the response instead:
 
+<!-- ts-check: declare User -->
 ```typescript
 const response = await request.get<User>('/api/users/42')
 const user = await response.json()   // typed as User
@@ -75,6 +80,7 @@ you expect; it asserts nothing at runtime, so a service returning `{}` produces 
 believes in and the test then fails somewhere confusing, three assertions later. Use both — the
 generic for the editor, the schema for the guarantee:
 
+<!-- ts-check: declare User, UserSchema -->
 ```typescript
 const response = await request.get<User>('/api/users/42')
 const user = UserSchema.parse(await response.json())
@@ -90,6 +96,7 @@ the ticket that specified the field. Not from what the live environment happened
 
 When the two disagree, **the service is the bug**. Do not relax the field to make the run green:
 
+<!-- ts-check: skip shows the right and the wrong form side by side -->
 ```typescript
 // The contract says status is always present and one of two values.
 status: z.enum(['PENDING', 'DONE']),
@@ -125,6 +132,7 @@ everything the service promised — and those are the same number until the day 
 
 One helper, one budget, one message. Never `waitForTimeout`.
 
+<!-- ts-check: declare Api, Status, BUDGET, Thing -->
 ```typescript
 export async function waitForStatus(api: Api, id: string, expected: Status, budgetMs = BUDGET.SETTLE) {
   let last: Thing | undefined
@@ -149,6 +157,8 @@ time, say so in the README as a known blind spot rather than pretending the asse
 ## Test data
 
 ```typescript
+import { randomInt } from 'node:crypto'
+
 export const freshCustomer = (): string => `2547${String(randomInt(0, 1e8)).padStart(8, '0')}`
 ```
 
@@ -163,6 +173,7 @@ difference between a suite that survives a shared environment and one that does 
 
 A confirmed bug is not a reason to delete a test or skip it.
 
+<!-- ts-check: declare expectKnownBug, expectCredited, before, after, amount -->
 ```typescript
 await expectKnownBug('BUG-002', () => {
   expectCredited(before, after, amount)     // what it SHOULD do

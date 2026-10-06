@@ -69,6 +69,29 @@ export function loadAgents(skillsDir: string): AgentDef[] {
   })
 }
 
+/**
+ * The skill's own `allowed-tools`, extended with every grant a workflow
+ * declares that the skill does not already make.
+ *
+ * A workflow body lives inside the skill directory, so the skill's grant is
+ * the one in force when an agent reaches the procedure by name rather than
+ * through a command, and it is the grant the output validator holds every
+ * command in the body against. Deriving it here keeps the two from drifting:
+ * a workflow cannot ship a command its own skill would refuse, and the grant
+ * is written once, in the workflow's frontmatter. Entries keep their order;
+ * duplicates are dropped.
+ */
+export function mergeAllowedTools(base: string, workflows: readonly Pick<Workflow, 'allowedTools'>[]): string {
+  const entries: string[] = []
+  for (const list of [base, ...workflows.map(w => w.allowedTools)]) {
+    for (const raw of list.split(',')) {
+      const entry = raw.trim()
+      if (entry !== '' && !entries.includes(entry)) entries.push(entry)
+    }
+  }
+  return entries.join(', ')
+}
+
 function listSources(dir: string): Array<{ file: string; text: string }> {
   if (!existsSync(dir)) return []
   return readdirSync(dir, { withFileTypes: true })

@@ -67,6 +67,7 @@ Rules:
 
 ### Overriding fixtures per file
 
+<!-- ts-check: declare test -->
 ```typescript
 // Use a different viewport or locale for one describe block
 test.use({ viewport: { width: 390, height: 844 }, locale: 'de-DE' })
@@ -154,6 +155,7 @@ credential everywhere else too: never upload it as a CI artifact, and never writ
 By default: cookies, plus a `localStorage` snapshot per origin. That is enough for most session
 tokens and not enough for several things teams routinely hit, each of which is an opt-in:
 
+<!-- ts-check: declare authFile -->
 ```typescript
 await page.context().storageState({
   path: authFile,
@@ -174,6 +176,7 @@ on only the options the app actually needs.
 
 ### Faster: authenticate through the API
 
+<!-- ts-check: declare authFile -->
 ```typescript
 setup('authenticate via API', async ({ request }) => {
   const response = await request.post('/api/login', {

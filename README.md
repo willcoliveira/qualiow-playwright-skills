@@ -69,7 +69,7 @@ Exit codes: `0` success or dry run, `1` usage error, refused overwrite or failed
 | `copilot` | `.agents/skills/playwright-e2e/` + `.github/instructions/playwright-e2e.instructions.md` (path-specific rules) + a short marker block in `.github/copilot-instructions.md` |
 | `agents` | `.agents/skills/playwright-e2e/` only (read by Cursor, Copilot, Codex, Gemini CLI) |
 
-Cursor, Copilot and `agents` share one `.agents/skills/` tree, so selecting several of them writes the skill once. The `SKILL.md` frontmatter follows the Agent Skills spec (`name`, `description`, `allowed-tools`) and carries a `metadata.generator` marker so later runs can recognise their own output. The `allowed-tools` grant is scoped to what the references actually run — `playwright-cli` and `npx playwright` — so the agent can follow the debugging workflow without a permission prompt on every step, and no wider.
+Cursor, Copilot and `agents` share one `.agents/skills/` tree, so selecting several of them writes the skill once. The `SKILL.md` frontmatter follows the Agent Skills spec (`name`, `description`, `allowed-tools`) and carries a `metadata.generator` marker so later runs can recognise their own output. The `allowed-tools` grant is scoped to what the references actually run — `playwright-cli` and `npx playwright` — so the agent can follow the debugging workflow without a permission prompt on every step, and no wider. With the workflows pack it also carries each workflow's own narrow grants (for `/playwright-ci`: `gh pr checks|view`, `gh run view|rerun|download`, `git fetch|diff|merge-base`); nothing that pushes, rebases, merges or approves is ever granted.
 
 The Copilot marker block is merged: anything you wrote outside `<!-- wico-playwright-agent-skills:start/end -->` is preserved, and the block written by earlier versions is replaced.
 
@@ -101,7 +101,7 @@ The Copilot marker block is merged: anything you wrote outside `<!-- wico-playwr
 | `test-planning.md` | Exploration with `playwright-cli`, flow phases, plan template, checklist |
 | `test-debugging.md` | Failure patterns, debugging workflow, root cause classification, app bug vs test bug decision tree, bug report template |
 
-**workflows** adds five procedures as commands, and four sub-agents on Claude Code.
+**workflows** adds six procedures as commands, and four sub-agents on Claude Code.
 
 | Procedure | What it does |
 |-----------|--------------|
@@ -110,6 +110,7 @@ The Copilot marker block is merged: anything you wrote outside `<!-- wico-playwr
 | `/playwright-debug` | Reproduce, classify from evidence, fix — or report the application bug and leave the test failing |
 | `/playwright-review` | Mechanical pass, then judgement, in that order |
 | `/playwright-determinism` | Run N times and report the distribution |
+| `/playwright-ci` | Read a PR's failed CI log, sort the failure into this PR's code, a stale base or infrastructure, then fix or hand off — never retry, skip or merge to green |
 
 Each procedure's body is written **once**, at
 `<skill>/workflows/<id>.md`, and every platform's command file is a five-line wrapper pointing at
@@ -203,6 +204,7 @@ npm test                                            # node:test suite
 npm run build                                       # single ESM bundle in dist/
 npx tsx scripts/validate-output.ts <project-dir>    # validate generated output
 npx tsx scripts/check-rule-drift.ts <project-dir>  # check the summaries against the rules
+npm run check:fences                                # type-check every TypeScript example in skills/
 ```
 
 The test suite renders every platform × pack × version × fixture combination into a temp directory and validates the result: no unrendered template syntax, every relative link resolves, `SKILL.md` frontmatter matches the Agent Skills spec, Cursor rules and Copilot instructions have the required keys, and a second run reports every file unchanged. CI repeats that with the built package in a scratch project, and again with a pruned install (`--platforms claude --packs core`).
@@ -243,6 +245,7 @@ skills/
   rules.manifest.tsv        Rules stated in more than one place, and their anchors
 scripts/validate-output.ts  CLI wrapper around src/validate.ts
 scripts/check-rule-drift.ts CLI wrapper around src/rules.ts
+scripts/check-ts-fences.ts  Type-checks skills/ TypeScript fences against @playwright/test (`<!-- ts-check: … -->` steers a fence; generation drops those lines)
 tests/                      node:test suites
 ```
 

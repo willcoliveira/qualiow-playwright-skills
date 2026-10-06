@@ -55,6 +55,7 @@ Tags go in the options object (`{ tag: ['@smoke', '@checkout'] }`), never in the
 {{#if HAS_CUSTOM_FIXTURE}}
 ### MUST: Import `test` and `expect` from the fixtures file, NOT from `@playwright/test`
 
+<!-- ts-check: skip correct and wrong imports side by side -->
 ```typescript
 // CORRECT — has the custom fixtures and the same expect
 import { test, expect } from '{{FIXTURE_IMPORT_PATH}}'
@@ -127,6 +128,7 @@ Details, composition (`filter`, `and`, `or`) and iframes (`.contentFrame()`) are
 
 Pages contain component instances:
 
+<!-- ts-check: declare Header, Cart -->
 ```typescript
 export class CheckoutPage {
   readonly header: Header
@@ -145,6 +147,7 @@ export class CheckoutPage {
 
 Prefer fixtures that hand page objects to the test, so specs never call `new`:
 
+<!-- ts-check: declare CheckoutPage -->
 ```typescript
 // src/fixtures/test-fixture.ts
 export const test = base.extend<{ checkoutPage: CheckoutPage }>({
@@ -172,6 +175,7 @@ const { homePage, loginPage, checkoutPage } = createTestPages({ page })
 
 ## Form Filling Patterns
 
+<!-- ts-check: declare TIMEOUTS -->
 ```typescript
 // Standard fill (clears, then sets the value)
 await page.getByLabel('Email').fill('user@example.com')
