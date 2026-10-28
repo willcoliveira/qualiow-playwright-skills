@@ -256,6 +256,8 @@ tests/                      node:test suites
 3. Run `npm run lint && npm test`
 4. Open a pull request (CI runs lint, tests, build, package check, and end-to-end generation)
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the checks that apply to `skills/` and the commit style.
+
 ## License
 
 MIT
