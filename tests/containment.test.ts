@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, rmSync, existsSync, readdirSync, writeFileSync, symlinkSync, linkSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { plan, writePlannedFiles } from '../src/generator.js'
 import { detectLegacyOutputs, removeLegacyOutputs } from '../src/migrate.js'
 import { assertInsideProject, UnsafePathError } from '../src/containment.js'
@@ -63,6 +64,8 @@ test('a symlink that stays inside the project is allowed', () => {
     const planned = plan(options(cwd, ['claude'], ['core']))
     writePlannedFiles(planned, cwd)
     assert.ok(existsSync(join(cwd, 'shared-skills', 'playwright-e2e', 'SKILL.md')))
+    const again = plan(options(cwd, ['claude'], ['core']))
+    assert.ok(again.every(file => file.status === 'unchanged'), 'a second plan through the link must see its own output')
   } finally {
     cleanup()
   }
@@ -78,6 +81,37 @@ test('a hard-linked target is refused', () => {
     linkSync(victim, join(skill, 'SKILL.md'))
     assert.throws(() => plan(options(cwd, ['claude'], ['core'])), /hard-linked/)
     assert.equal(readFileSync(victim, 'utf-8'), 'keep me\n')
+  } finally {
+    cleanup()
+  }
+})
+
+/** Windows has no mkfifo; the pipe tests are about a POSIX special file. */
+const noFifo = process.platform === 'win32'
+
+test('a named pipe in place of a generated file is refused before it is opened', { skip: noFifo, timeout: 5000 }, () => {
+  const { cwd, cleanup } = sandbox()
+  try {
+    // A read on a pipe with no writer never returns; the plan must refuse, not open it.
+    const skill = join(cwd, '.claude', 'skills', 'playwright-e2e')
+    mkdirSync(skill, { recursive: true })
+    execFileSync('mkfifo', [join(skill, 'SKILL.md')])
+    assert.throws(() => plan(options(cwd, ['claude'], ['core'])), /not a regular file/)
+
+    mkdirSync(join(cwd, '.github'))
+    execFileSync('mkfifo', [join(cwd, '.github', 'copilot-instructions.md')])
+    assert.throws(() => plan(options(cwd, ['copilot'], ['core'])), /not a regular file/)
+  } finally {
+    cleanup()
+  }
+})
+
+test('legacy detection skips a named pipe where it expects a file', { skip: noFifo, timeout: 5000 }, () => {
+  const { cwd, cleanup } = sandbox()
+  try {
+    mkdirSync(join(cwd, '.agent-skills'))
+    execFileSync('mkfifo', [join(cwd, '.agent-skills', 'SKILL.md')])
+    assert.deepEqual(detectLegacyOutputs(cwd), [])
   } finally {
     cleanup()
   }

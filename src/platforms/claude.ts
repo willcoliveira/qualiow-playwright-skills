@@ -13,20 +13,21 @@ export const CLAUDE_SKILLS_ROOT = ['.claude', 'skills'] as const
  * the one target with a native slash command and a native sub-agent.
  */
 export function planClaude(cwd: string, skillFiles: SkillFile[], workflows: Workflow[], agents: AgentDef[], skillsDir: string, ctx: TemplateContext, meta: PlanMeta): PlannedFile[] {
-  const files = planSkillsDir(join(cwd, ...CLAUDE_SKILLS_ROOT), skillFiles, workflows, skillsDir, ctx, meta)
+  const files = planSkillsDir(cwd, join(cwd, ...CLAUDE_SKILLS_ROOT), skillFiles, workflows, skillsDir, ctx, meta)
 
   for (const workflow of workflows) {
     const frontmatter: Record<string, string> = { description: workflow.summary }
     if (workflow.argumentHint !== '') frontmatter['argument-hint'] = workflow.argumentHint
     if (workflow.allowedTools !== '') frontmatter['allowed-tools'] = workflow.allowedTools
     files.push(plannedFile(
+      cwd,
       join(cwd, '.claude', 'commands', `${workflow.id}.md`),
       wrapperContent(workflow, frontmatter, CLAUDE_SKILLS_ROOT, 'The request is: $ARGUMENTS'),
     ))
   }
 
   for (const agent of agents) {
-    files.push(plannedFile(join(cwd, '.claude', 'agents', `${agent.id}.md`), agentContent(agent)))
+    files.push(plannedFile(cwd, join(cwd, '.claude', 'agents', `${agent.id}.md`), agentContent(agent)))
   }
 
   return files

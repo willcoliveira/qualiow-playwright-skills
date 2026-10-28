@@ -125,11 +125,10 @@ export function plan(options: GenerateOptions): PlannedFile[] {
     }
   }
 
-  const files = dedupePlanned(planned)
-  // Fail the plan, not the write: a dry run then reports the same refusal, and
-  // nothing is half-written when one path out of sixty is unsafe.
-  for (const file of files) assertInsideProject(options.cwd, file.path)
-  return files
+  // Every path was checked against the project root as it was planned, before
+  // it was opened (see plannedFile), so a dry run reports the same refusal a
+  // write would, and nothing is half-written when one path out of sixty is unsafe.
+  return dedupePlanned(planned)
 }
 
 /** Several platforms share `.agents/skills`; identical files are planned once. */
@@ -213,7 +212,13 @@ export function readSkill(skillsDir: string, relPath: string): string {
   return readFileSync(fullPath, 'utf-8')
 }
 
-export function plannedFile(path: string, content: string, mode: PlannedFile['mode'] = 'replace'): PlannedFile {
+/**
+ * Plans one file under `root`. The target is checked before it is opened: the
+ * read below is what tells new from changed from unchanged, and a link out of
+ * the project or a named pipe at the path must be refused before that read.
+ */
+export function plannedFile(root: string, path: string, content: string, mode: PlannedFile['mode'] = 'replace'): PlannedFile {
+  assertInsideProject(root, path)
   const exists = existsSync(path)
   let status: FileStatus = 'new'
   if (exists) {

@@ -1,4 +1,4 @@
-import { lstatSync, realpathSync } from 'node:fs'
+import { lstatSync, realpathSync, statSync, type Stats } from 'node:fs'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 /**
@@ -12,6 +12,11 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path'
  * one skill tree between two roots), and refused when it resolves anywhere else
  * or nowhere. A file with more than one hard link is refused too, since writing
  * it changes every other name it has.
+ *
+ * An existing target must be a regular file, or a directory where legacy
+ * removal expects one. The plan reads a target before it writes it, to tell
+ * changed from unchanged, so a named pipe or a device there would block or
+ * divert that read; it is refused before anything opens it.
  */
 export class UnsafePathError extends Error {}
 
@@ -43,9 +48,19 @@ export function assertInsideProject(root: string, target: string): void {
       if (!isInside(realRoot, real)) {
         throw new UnsafePathError(`Refusing to write through ${relative(absRoot, current)}: it is a symlink to ${real}, outside the project`)
       }
-    } else if (current === absTarget && stat.isFile() && stat.nlink > 1) {
-      throw new UnsafePathError(`Refusing to write ${relative(absRoot, current)}: it is hard-linked to ${stat.nlink - 1} other path(s)`)
+      if (current === absTarget) assertFileOrDirectory(statSync(real), relative(absRoot, current))
+    } else if (current === absTarget) {
+      assertFileOrDirectory(stat, relative(absRoot, current))
+      if (stat.isFile() && stat.nlink > 1) {
+        throw new UnsafePathError(`Refusing to write ${relative(absRoot, current)}: it is hard-linked to ${stat.nlink - 1} other path(s)`)
+      }
     }
+  }
+}
+
+function assertFileOrDirectory(stat: Stats, label: string): void {
+  if (!stat.isFile() && !stat.isDirectory()) {
+    throw new UnsafePathError(`Refusing to touch ${label}: it is not a regular file or directory`)
   }
 }
 

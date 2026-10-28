@@ -17,12 +17,13 @@ import { wrapperContent } from './wrappers.js'
 export function planCursor(cwd: string, skillFiles: SkillFile[], workflows: Workflow[], agents: AgentDef[], skillsDir: string, ctx: TemplateContext, meta: PlanMeta): PlannedFile[] {
   const rule = renderTemplate(readSkill(skillsDir, 'indexes/cursor-rules.mdc'), ctx)
   const commands = workflows.map(workflow => plannedFile(
+    cwd,
     join(cwd, '.cursor', 'commands', `${workflow.id}.md`),
     wrapperContent(workflow, { description: workflow.summary }, AGENTS_SKILLS_ROOT, 'The request follows this line.'),
   ))
   return [
     ...planAgents(cwd, skillFiles, workflows, agents, skillsDir, ctx, meta),
-    plannedFile(join(cwd, '.cursor', 'rules', 'playwright-e2e.mdc'), rule),
+    plannedFile(cwd, join(cwd, '.cursor', 'rules', 'playwright-e2e.mdc'), rule),
     ...commands,
   ]
 }
