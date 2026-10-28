@@ -12,7 +12,7 @@ updates:
       development:
         dependency-type: development
 
-  # Actions in ci.yml are pinned by commit SHA; Dependabot bumps the SHA and
+  # Actions in ci.yml and release.yml are pinned by commit SHA; Dependabot bumps the SHA and
   # the version comment together.
   - package-ecosystem: github-actions
     directory: /

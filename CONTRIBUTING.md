@@ -28,3 +28,13 @@ When editing `skills/`:
   title, e.g. `feat(skills): ...` or `fix(cli): ...`.
 - Don't change the version number; releases do that.
 - For larger changes, open an issue first.
+
+## Releasing (maintainers)
+
+A release is a pull request that bumps `version` in `package.json` and moves the Unreleased
+changelog entries under the new version. Once it is merged, tag the merge commit `v<version>` and
+push the tag: `.github/workflows/release.yml` runs the full check and publishes to npm through
+trusted publishing, with provenance. Nothing is published from a laptop. The workflow is registered
+on npmjs.com as the package's trusted publisher; a tag pushed without that registration fails at
+the publish step and publishes nothing. The GitHub release and its notes are written by hand
+afterwards.
