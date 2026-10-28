@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util'
 import * as p from '@clack/prompts'
 import pc from 'picocolors'
-import { detectProject, type ProjectDetection } from './detect.js'
+import { detectProject, isPackageName, type ProjectDetection } from './detect.js'
 import {
   plan,
   writePlannedFiles,
@@ -119,10 +119,16 @@ export function parseFlags(argv: readonly string[]): CliFlags {
     throw new CliUsageError(`Unexpected arguments: ${positionals.slice(1).join(' ')}`)
   }
 
-  for (const flag of ['project-name', 'fixture-import-path', 'page-objects-dir', 'test-dir'] as const) {
+  for (const flag of ['fixture-import-path', 'page-objects-dir', 'test-dir'] as const) {
     const value = values[flag]
     const problem = value === undefined ? undefined : findUnsafeCharacter(value)
     if (problem) throw new CliUsageError(`--${flag}: ${problem}`)
+  }
+
+  const projectName = values['project-name']
+  if (projectName !== undefined) {
+    const problem = validateProjectName(projectName)
+    if (problem) throw new CliUsageError(`--project-name: ${problem}`)
   }
 
   const baseUrl = values['base-url']
@@ -200,6 +206,24 @@ export function validateBaseUrl(value: string): string | undefined {
   } catch {
     return 'enter a valid URL (e.g. https://staging.example.com)'
   }
+  return undefined
+}
+
+/** Keeps the SKILL.md description, which embeds the name, well under the spec's 1024 characters. */
+export const MAX_PROJECT_NAME_LENGTH = 100
+
+/**
+ * The project name is rendered into markdown headings, into the quoted
+ * SKILL.md description, and into the Cursor rule's description, which is a
+ * plain YAML scalar. In a plain scalar `: ` starts a mapping and ` #` starts
+ * a comment, so either one would end the value where it appears.
+ */
+export function validateProjectName(value: string): string | undefined {
+  const unsafe = findUnsafeCharacter(value)
+  if (unsafe) return unsafe
+  if (value.trim() === '') return 'must not be empty'
+  if (value.length > MAX_PROJECT_NAME_LENGTH) return `must be at most ${MAX_PROJECT_NAME_LENGTH} characters`
+  if (value.includes(': ') || value.includes(' #')) return 'cannot contain ": " or " #" (the name is rendered into YAML frontmatter)'
   return undefined
 }
 
@@ -451,15 +475,21 @@ function reportDetection(detection: ProjectDetection): void {
 }
 
 async function collectProjectInfo(flags: CliFlags, detection: ProjectDetection, needsTemplateInfo: boolean, interactive: boolean): Promise<ProjectInfo | null> {
-  // package.json belongs to whoever wrote the repository, not to the person running init.
+  // package.json belongs to whoever wrote the repository, not to the person
+  // running init, and its name lands in the generated instructions as written.
+  // Only a value shaped like a package name is a package name; anything else
+  // is a sentence someone put there.
   let detectedName = detection.packageName
-  if (detectedName !== null && findUnsafeCharacter(detectedName)) {
-    p.log.warn(`Ignoring the package.json name: it contains a line break or control character. Using "${DEFAULT_PROJECT_INFO.projectName}".`)
+  if (detectedName !== null && !isPackageName(detectedName)) {
+    p.log.warn(`Ignoring the package.json name: it is not a valid npm package name. Using "${DEFAULT_PROJECT_INFO.projectName}".`)
     detectedName = null
   }
   const defaults: ProjectInfo = { ...DEFAULT_PROJECT_INFO, projectName: detectedName ?? DEFAULT_PROJECT_INFO.projectName }
 
-  const projectName = await resolveText(flags.projectName, defaults.projectName, interactive, { message: 'Project name:', validate: validateSingleLine })
+  const projectName = await resolveText(flags.projectName, defaults.projectName, interactive, {
+    message: 'Project name:',
+    validate: value => validateProjectName(value ?? ''),
+  })
   if (projectName === null) return null
 
   if (!needsTemplateInfo) {

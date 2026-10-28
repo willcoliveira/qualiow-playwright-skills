@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { compareVersions, detectProject, versionFromRange } from '../src/detect.js'
+import { compareVersions, detectProject, isPackageName, versionFromRange } from '../src/detect.js'
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), 'wico-detect-'))
@@ -43,6 +43,15 @@ test('versionFromRange extracts a usable version or nothing', () => {
   assert.equal(versionFromRange('*'), null)
   assert.equal(versionFromRange('latest'), null)
   assert.equal(versionFromRange(undefined), null)
+})
+
+test('isPackageName accepts the shapes npm publishes and nothing else', () => {
+  for (const name of ['shop-e2e', '@acme/shop.e2e', 'JSONStream', 'a', 'x_y~z', 'a'.repeat(214)]) {
+    assert.ok(isPackageName(name), name)
+  }
+  for (const name of ['', 'shop e2e', 'shop: e2e', 'a"b', '@acme', '@acme/', '.hidden', '_private', 'a'.repeat(215), 'x\ny']) {
+    assert.ok(!isPackageName(name), JSON.stringify(name))
+  }
 })
 
 test('detects an installed @playwright/test at the project root', () => {
