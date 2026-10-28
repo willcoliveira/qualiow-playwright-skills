@@ -6,9 +6,10 @@ import { fileURLToPath } from 'node:url'
  * Reads the package version from package.json so the CLI banner never
  * drifts from the published version. Falls back gracefully if the file
  * cannot be located (e.g. unusual install layouts).
+ *
+ * `here` is the directory to search from; tests pass their own.
  */
-export function getVersion(): string {
-  const here = dirname(fileURLToPath(import.meta.url))
+export function getVersion(here: string = dirname(fileURLToPath(import.meta.url))): string {
   // Running from source: src/version.ts → ../package.json
   // Running from bundle: dist/bin/init.js → ../../package.json
   const candidates = [
