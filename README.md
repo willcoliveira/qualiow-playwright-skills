@@ -21,7 +21,7 @@ The CLI detects your Playwright version, generates the skill in the right place 
 
 ## Install
 
-Requires Node.js >= 20. In your Playwright project:
+Requires Node.js >= 20.12. In your Playwright project:
 
 ```bash
 npx wico-playwright-agent-skills init
