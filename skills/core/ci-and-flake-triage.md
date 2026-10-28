@@ -114,7 +114,7 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
-    container: mcr.microsoft.com/playwright:v1.63.0-noble   # match your @playwright/test version
+    container: mcr.microsoft.com/playwright:v1.64.1-noble   # match your @playwright/test version
     strategy:
       fail-fast: false
       matrix:
