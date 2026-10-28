@@ -48,6 +48,43 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+  # Two things the matrix above cannot see. Its entry "20" resolves to the
+  # newest 20.x, so an API newer than the floor engines declares passes it;
+  # a job pinned to 20.12 is what makes that floor a tested claim. And the
+  # installer spawns through a shell on win32, the containment check
+  # resolves junctions and the fence checker links node_modules, none of
+  # which had run on Windows. Fixed names, so they can be required on main.
+  compat:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Node 20.12 floor
+            os: ubuntu-latest
+            node-version: '20.12'
+          - name: Windows
+            os: windows-latest
+            node-version: 22
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run check:fences
+      - run: npm run build
+      - name: Smoke test CLI
+        run: |
+          node dist/bin/init.js --version
+          node dist/bin/init.js --help
+
   e2e:
     name: Generated output
     runs-on: ubuntu-latest
