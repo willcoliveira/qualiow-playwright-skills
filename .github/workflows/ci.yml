@@ -50,10 +50,12 @@ jobs:
 
   # Two things the matrix above cannot see. Its entry "20" resolves to the
   # newest 20.x, so an API newer than the floor engines declares passes it;
-  # a job pinned to 20.12 is what makes that floor a tested claim. And the
-  # installer spawns through a shell on win32, the containment check
-  # resolves junctions and the fence checker links node_modules, none of
-  # which had run on Windows. Fixed names, so they can be required on main.
+  # a job pinned to 20.12 is what makes that floor a tested claim. The tests
+  # load src directly, which is what proves it: tsup 9 itself needs Node
+  # 22.18 or newer, so the floor job does not build. And the installer
+  # spawns through a shell on win32, the containment check resolves
+  # junctions and the fence checker links node_modules, none of which had
+  # run on Windows. Fixed names, so they can be required on main.
   compat:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -64,9 +66,11 @@ jobs:
           - name: Node 20.12 floor
             os: ubuntu-latest
             node-version: '20.12'
+            build: false
           - name: Windows
             os: windows-latest
             node-version: 22
+            build: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -80,7 +84,9 @@ jobs:
       - run: npm test
       - run: npm run check:fences
       - run: npm run build
+        if: ${{ matrix.build }}
       - name: Smoke test CLI
+        if: ${{ matrix.build }}
         run: |
           node dist/bin/init.js --version
           node dist/bin/init.js --help
