@@ -229,8 +229,10 @@ const VARIANTS: Array<{ label: string; ctx: TemplateContext }> = [
 ]
 
 export interface CheckedFence {
-  /** Source file, relative to the repo root, POSIX separators. */
+  /** Source file, relative to the repo root, POSIX separators; for display. */
   file: string
+  /** Absolute path of the source file; for reading it back. */
+  path: string
   /** 1-based line of the opening fence in the source file. */
   line: number
   directive: Directive
@@ -280,7 +282,7 @@ export function collectFences(skillsDir: string, repoRoot: string): CheckedFence
           existing.variants.push(variant.label)
           continue
         }
-        const entry: CheckedFence = { file, line: fence.line, directive: fence.directive, declared: fence.declared, variants: [variant.label], code }
+        const entry: CheckedFence = { file, path, line: fence.line, directive: fence.directive, declared: fence.declared, variants: [variant.label], code }
         byCode.set(code, entry)
         out.push(entry)
       }
@@ -400,7 +402,7 @@ export function checkFences(options: { repoRoot: string; skillsDir: string; keep
         const { fence, offset } = target
         failures.push({
           file: fence.file,
-          line: sourceLine(repoRoot, fence, Number(lineText) - offset),
+          line: sourceLine(fence, Number(lineText) - offset),
           fenceLine: fence.line,
           code,
           message: syntax ? `${message} (does not parse; later errors in this fence not reported)` : message,
@@ -440,12 +442,15 @@ function groupDiagnostics(output: string): Array<{ raw: string; head: string; de
 /**
  * Maps a line inside a rendered fence back to the source file. Without
  * template syntax in the fence the mapping is exact; with it, the rendered
- * line is looked up by its text among the source fence's lines.
+ * line is looked up by its text among the source fence's lines. The file is
+ * read by its own path: `fence.file` is relative to the repo root for
+ * display, and on Windows a skills directory on another drive has no
+ * relative path to the repo at all.
  */
-function sourceLine(repoRoot: string, fence: CheckedFence, lineInFence: number): number {
+function sourceLine(fence: CheckedFence, lineInFence: number): number {
   const lines = fence.code.split('\n')
   if (lineInFence < 1 || lineInFence > lines.length) return fence.line
-  const raw = readFileSync(join(repoRoot, fence.file), 'utf-8').split(/\r?\n/)
+  const raw = readFileSync(fence.path, 'utf-8').split(/\r?\n/)
   const exact = fence.line + lineInFence
   const wanted = lines[lineInFence - 1].trim()
   if (raw[exact - 1]?.trim() === wanted) return exact
