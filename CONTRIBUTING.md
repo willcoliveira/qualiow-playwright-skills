@@ -2,7 +2,9 @@
 
 ## Setup
 
-Requires Node.js >= 20.12.
+Requires Node.js >= 20.12. That runs the CLI from source, the tests and the checks; it is the
+floor the package declares for its users. `npm run build` needs a release that tsup 9
+supports: Node.js 22.18, 24.11 or newer.
 
 ```bash
 npm ci
