@@ -16,8 +16,11 @@ export const WORKFLOWS_SUBDIR = 'workflows'
  * The same layout serves `.claude/skills` (Claude Code) and `.agents/skills`
  * (Cursor, GitHub Copilot, Codex, Gemini CLI). The SKILL.md frontmatter is
  * stamped with generator metadata so later runs can recognise their own output.
+ *
+ * `cwd` is the project every planned path is checked against; `root` is the
+ * skills tree inside it.
  */
-export function planSkillsDir(root: string, skillFiles: SkillFile[], workflows: Workflow[], skillsDir: string, ctx: TemplateContext, meta: PlanMeta): PlannedFile[] {
+export function planSkillsDir(cwd: string, root: string, skillFiles: SkillFile[], workflows: Workflow[], skillsDir: string, ctx: TemplateContext, meta: PlanMeta): PlannedFile[] {
   const skillDir = join(root, SKILL_NAME)
   const files: PlannedFile[] = []
 
@@ -33,16 +36,16 @@ export function planSkillsDir(root: string, skillFiles: SkillFile[], workflows: 
     if (merged !== '') stamp['allowed-tools'] = merged
   }
   const stamped = withFrontmatter(index, stamp)
-  files.push(plannedFile(join(skillDir, 'SKILL.md'), stamped))
+  files.push(plannedFile(cwd, join(skillDir, 'SKILL.md'), stamped))
 
   for (const skill of skillFiles) {
-    files.push(plannedFile(join(skillDir, 'references', skill.name), skill.content))
+    files.push(plannedFile(cwd, join(skillDir, 'references', skill.name), skill.content))
   }
 
   // One body per workflow, identical in every skill tree. The per-platform
   // command files are wrappers around these; nothing here is duplicated.
   for (const workflow of workflows) {
-    files.push(plannedFile(join(skillDir, WORKFLOWS_SUBDIR, `${workflow.id}.md`), renderTemplate(workflow.body, ctx)))
+    files.push(plannedFile(cwd, join(skillDir, WORKFLOWS_SUBDIR, `${workflow.id}.md`), renderTemplate(workflow.body, ctx)))
   }
 
   return files

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, rmSync, rmdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, rmSync, rmdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { parseFrontmatter } from './frontmatter.js'
 import { PACKAGE_NAME, type PlannedFile } from './generator.js'
@@ -53,16 +53,17 @@ export function detectLegacyOutputs(cwd: string, planned: readonly PlannedFile[]
 
   // 1.x "generic" platform output; no tool reads this directory.
   const agentSkillsDir = join(cwd, '.agent-skills')
-  const agentSkillsIndex = join(agentSkillsDir, 'SKILL.md')
-  if (existsSync(agentSkillsIndex) && isLegacyIndex(readText(agentSkillsIndex))) {
+  const agentSkillsText = readOwnedText(cwd, join(agentSkillsDir, 'SKILL.md'))
+  if (agentSkillsText !== null && isLegacyIndex(agentSkillsText)) {
     items.push({ path: agentSkillsDir, kind: 'dir', reason: '1.x generic output; replaced by .agents/skills/playwright-e2e/ (nothing reads .agent-skills/)' })
   }
 
   // 1.x per-skill Cursor rules; replaced by one pointer rule + .agents/skills.
   for (const [name, description] of Object.entries(LEGACY_CURSOR_RULE_DESCRIPTIONS)) {
     const rule = join(cwd, '.cursor', 'rules', `${name}.mdc`)
-    if (!existsSync(rule)) continue
-    const { data } = parseFrontmatter(readText(rule))
+    const text = readOwnedText(cwd, rule)
+    if (text === null) continue
+    const { data } = parseFrontmatter(text)
     if (data.description === description) {
       items.push({ path: rule, kind: 'file', reason: '1.x per-skill Cursor rule; replaced by .cursor/rules/playwright-e2e.mdc + .agents/skills/playwright-e2e/' })
     }
@@ -73,7 +74,8 @@ export function detectLegacyOutputs(cwd: string, planned: readonly PlannedFile[]
     const skillDir = join(cwd, ...root, SKILL_NAME)
     const index = join(skillDir, 'SKILL.md')
     if (!plannedPaths.has(resolve(index))) continue // not generating for this root this run
-    if (!existsSync(index) || !isOurs(readText(index))) continue
+    const indexText = readOwnedText(cwd, index)
+    if (indexText === null || !isOurs(indexText)) continue
     const refsDir = join(skillDir, 'references')
     if (!existsSync(refsDir)) continue
     for (const entry of readdirSync(refsDir, { withFileTypes: true, recursive: true })) {
@@ -89,7 +91,8 @@ export function detectLegacyOutputs(cwd: string, planned: readonly PlannedFile[]
     const skillDir = join(cwd, ...root, SKILL_NAME)
     const index = join(skillDir, 'SKILL.md')
     if (!plannedPaths.has(resolve(index))) continue
-    if (!existsSync(index) || !isOurs(readText(index))) continue
+    const indexText = readOwnedText(cwd, index)
+    if (indexText === null || !isOurs(indexText)) continue
     const workflowsDir = join(skillDir, WORKFLOWS_SUBDIR)
     if (!existsSync(workflowsDir)) continue
     for (const entry of readdirSync(workflowsDir, { withFileTypes: true })) {
@@ -110,16 +113,16 @@ export function detectLegacyOutputs(cwd: string, planned: readonly PlannedFile[]
       if (!entry.isFile() || !entry.name.endsWith(suffix)) continue
       const file = join(entry.parentPath, entry.name)
       if (plannedPaths.has(resolve(file))) continue
-      if (!readText(file).includes(`<!-- ${PACKAGE_NAME}:`)) continue
+      if (!readOwnedText(cwd, file)?.includes(`<!-- ${PACKAGE_NAME}:`)) continue
       items.push({ path: file, kind: 'file', reason: 'generated for a workflow the current packs no longer produce' })
     }
   }
 
   // 1.x vendored copy of the playwright-cli skill (the official installer now owns this path).
   const vendoredDir = join(cwd, '.claude', 'skills', 'playwright-cli')
-  const vendoredIndex = join(vendoredDir, 'SKILL.md')
-  if (existsSync(vendoredIndex)) {
-    const reason = vendoredPlaywrightCliReason(readText(vendoredIndex))
+  const vendoredText = readOwnedText(cwd, join(vendoredDir, 'SKILL.md'))
+  if (vendoredText !== null) {
+    const reason = vendoredPlaywrightCliReason(vendoredText)
     if (reason) items.push({ path: vendoredDir, kind: 'dir', reason })
   }
 
@@ -168,6 +171,17 @@ function vendoredPlaywrightCliReason(skillMd: string): string | null {
   return null
 }
 
-function readText(path: string): string {
-  return readFileSync(path, 'utf-8')
+/**
+ * The text of a file this generator may own, or null when the path is outside
+ * the project, reached through a link out of it, or not a regular file.
+ * Nothing is opened before that is known: a named pipe would block the read.
+ */
+function readOwnedText(cwd: string, path: string): string | null {
+  if (!isInsideProject(cwd, path)) return null
+  try {
+    if (!statSync(path).isFile()) return null
+    return readFileSync(path, 'utf-8')
+  } catch {
+    return null
+  }
 }

@@ -2,7 +2,7 @@
 
 ## Setup
 
-Requires Node.js >= 20.
+Requires Node.js >= 20.12.
 
 ```bash
 npm ci

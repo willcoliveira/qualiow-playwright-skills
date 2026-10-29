@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **A package.json name could still steer the generated instructions.** 2.4.1 rejected line breaks
+  and control characters in the default project name; a one-line sentence passed, and under `--yes`
+  it was rendered verbatim into the skill description, five template headings and the Cursor rule.
+  The name is now used only when it has the shape of an npm package name. `--project-name` is
+  capped at 100 characters and may not contain `: ` or ` #`, which end a plain YAML scalar in the
+  Cursor rule's frontmatter.
+- **`init` opened existing files before checking where they led.** The plan read each target to
+  tell new from changed from unchanged, and the containment check ran afterwards, so a named pipe
+  at a generated path blocked even `--dry-run`. Every target is now checked before it is opened,
+  and an existing target must be a regular file (or a directory, for legacy removal).
+- **The declared Node.js range was wrong.** `engines` said 20 or newer, but the generator relies on
+  `Dirent.parentPath`, which Node added in 20.12; on 20.0–20.11 `init` threw. The range is now
+  `>=20.12`.
+
 ## 2.5.0 — 2026-10-06
 
 Guidance on proving a fix and a test, a sixth procedure for CI, and a check that keeps the

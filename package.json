@@ -7,7 +7,7 @@
     "wico-playwright-agent-skills": "dist/bin/init.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.12"
   },
   "scripts": {
     "build": "tsup",

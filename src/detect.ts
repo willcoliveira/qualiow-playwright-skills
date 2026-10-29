@@ -40,6 +40,20 @@ export interface ProjectDetection {
   hasBundledCli: boolean
 }
 
+/**
+ * The shape of an npm package name: an optional `@scope/`, then URL-safe
+ * characters, at most 214 in all. Uppercase is accepted because names
+ * published before npm forbade it still exist. A package.json `name` of any
+ * other shape was not written for npm, and since it is the default project
+ * name rendered into the generated instructions, it is treated as absent.
+ */
+const PACKAGE_NAME_RE = /^(?:@[A-Za-z0-9-~][A-Za-z0-9-._~]*\/)?[A-Za-z0-9-~][A-Za-z0-9-._~]*$/
+export const MAX_PACKAGE_NAME_LENGTH = 214
+
+export function isPackageName(value: string): boolean {
+  return value.length <= MAX_PACKAGE_NAME_LENGTH && PACKAGE_NAME_RE.test(value)
+}
+
 interface PackageJson {
   name?: unknown
   version?: unknown

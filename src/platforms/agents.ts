@@ -11,5 +11,5 @@ export const AGENTS_SKILLS_ROOT = ['.agents', 'skills'] as const
  * and only add a small pointer file of their own.
  */
 export function planAgents(cwd: string, skillFiles: SkillFile[], workflows: Workflow[], agents: AgentDef[], skillsDir: string, ctx: TemplateContext, meta: PlanMeta): PlannedFile[] {
-  return planSkillsDir(join(cwd, ...AGENTS_SKILLS_ROOT), skillFiles, workflows, skillsDir, ctx, meta)
+  return planSkillsDir(cwd, join(cwd, ...AGENTS_SKILLS_ROOT), skillFiles, workflows, skillsDir, ctx, meta)
 }
